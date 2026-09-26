@@ -316,6 +316,7 @@ function seedData(){
     {id:"v11",patientId:"p10",branchId:"b2",date:"24-09-2026",complaint:"Fever, body ache",diagnosis:"Viral fever",
      rx:"Paracetamol 650mg 1-1-1 × 3 days",advice:"Hydration",followUp:"30-09-2026"}
   ];
+  const DRUG_PRICES=[30,120,90,45,95,70,60,120,85,110,55,95,50,65,40,45,140,280,100,60,75,90,85,70,55,25,22,40,95,85,110,120,30,90,650];
   const drugs = [
     ["Paracetamol 650mg","1-1-1","Fever, pain"],["Azithromycin 500mg","1-0-0","Bacterial infection"],
     ["Amoxicillin 500mg","1-1-1","Bacterial infection"],["Cetirizine 10mg","0-0-1","Allergy, cold"],
@@ -335,7 +336,7 @@ function seedData(){
     ["Betadine gargle","2-3 times daily","Sore throat"],["Multivitamin","1-0-0","General weakness"],
     ["Aspirin 75mg","1-0-0","Blood thinner"],["Clopidogrel 75mg","1-0-0","Blood thinner"],
     ["Insulin Glargine","as prescribed","Diabetes"]
-  ].map((d,i)=>({id:"d"+(i+1),name:d[0],dose:d[1],use:d[2]}));
+  ].map((d,i)=>({id:"d"+(i+1),name:d[0],dose:d[1],use:d[2],mrp:DRUG_PRICES[i]||50}));
   const templates = [
     {id:"w1",name:"Token confirmed",text:"Namaste {name}, your token #{token} at {clinic} is confirmed. Please arrive 15 min early."},
     {id:"w2",name:"Queue update",text:"{name}, your turn is in ~{eta} min at {clinic}. Token #{token}."},
@@ -352,7 +353,7 @@ function seedData(){
     {id:"bl05",no:"R-105",patientId:"p05",branchId:"b2",date:"26-09-2026",items:[["Consultation",250],["Montelukast 10mg × 15",140]],paid:true,mode:"UPI"}
   ];
   return {branches,patients,tokens:tokens,visits,drugs,templates,bills,
-    messages:[],auditLog:[],session:null,tokenSeq:{b1:11,b2:3},billSeq:106};
+    messages:[],auditLog:[],session:null,tokenSeq:{b1:11,b2:3},billSeq:106,fees:{b1:300,b2:250}};
 }
 
 /* ---------------- Data layer ---------------- */
@@ -373,7 +374,7 @@ function nowStr(){
 }
 function todayStr(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()}`; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function inr(n){ return "₹"+Number(n).toLocaleString("en-IN"); }
+function inr(n){ return "\u20B9"+Number(n).toLocaleString("en-IN"); }
 function patientById(id){ return DB.patients.find(p=>p.id===id); }
 function branchTokens(bid){ return DB.tokens.filter(t=>t.branchId===bid).sort((a,b)=>a.num-b.num); }
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
@@ -387,8 +388,8 @@ const NAV=[
   {id:"dashboard",t:"Dashboard",ic:"\uD83D\uDCCA"},
   {id:"queue",t:"Token Queue",ic:"\uD83C\uDFAB"},
   {id:"patients",t:"Patients",ic:"\uD83D\uDC65"},
-  {id:"consult",t:"Consult",ic:"\uD83E\uDE7A",phase:"Phase 2"},
-  {id:"billing",t:"Billing",ic:"\uD83E\uDDFE",phase:"Phase 2"},
+  {id:"consult",t:"Consult",ic:"\uD83E\uDE7A"},
+  {id:"billing",t:"Billing",ic:"\uD83E\uDDFE"},
   {id:"whatsapp",t:"WhatsApp",ic:"\uD83D\uDCAC",phase:"Phase 3"},
   {id:"branches",t:"Branches",ic:"\uD83C\uDFE5",phase:"Phase 3"},
   {id:"reports",t:"Reports",ic:"\uD83D\uDCC8",phase:"Phase 3"},
@@ -398,7 +399,6 @@ const NAV=[
 ];
 let curView="dashboard";
 function buildNav(){
-  const main=NAV.slice(0,3);
   document.getElementById("sideNav").innerHTML =
     '<div class="sec">Clinic</div>'+NAV.slice(0,8).map(n=>
       `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
@@ -433,19 +433,16 @@ function needDoctor(){
   return false;
 }
 function placeholderPage(n){
-  const d={consult:["\uD83E\uDE7A","AI Consult","Voice-to-prescription scribe, safety checker, one-tap Rx — the flagship screen."],
-    billing:["\uD83E\uDDFE","Billing","UPI QR, receipts, dues tracking."],
-    whatsapp:["\uD83D\uDCAC","WhatsApp Center","Templates, reminders, report delivery on the clinic's own number."],
+  const d={whatsapp:["\uD83D\uDCAC","WhatsApp Center","Templates, reminders, report delivery on the clinic's own number."],
     branches:["\uD83C\uDFE5","Branches","Switch locations, branch-level stats, one shared patient record."],
     reports:["\uD83D\uDCC8","Reports","Revenue, footfall, follow-ups, medicine analytics."],
-    agents:["\u2728","AI Agents","Scribe, Safety Checker, Follow-up and Queue agents — status and controls."],
+    agents:["\u2728","AI Agents","Scribe, Safety Checker, Follow-up and Queue agents \u2014 status and controls."],
     security:["\uD83D\uDD12","Security & Audit","Full audit log, role permissions, backup & restore."],
     settings:["\u2699\uFE0F","Settings","Clinic profile, staff, fees, print header."]}[n.id]||["\u2728",n.t,""];
   return `<div class="pagehead"><h2>${n.t}</h2></div>
     <div class="card"><div class="placeholder"><div class="big">${d[0]}</div><h3>${d[1]}</h3>
     <p>${d[2]}</p><span class="phase-tag">${n.phase||""}</span></div></div>`;
 }
-
 /* ---------------- Login ---------------- */
 let loginRole="doctor";
 function pickRole(r){ loginRole=r;
@@ -489,7 +486,7 @@ function render(){
   const v=document.getElementById("view");
   const n=NAV.find(x=>x.id===curView);
   if(n.phase){ v.innerHTML=placeholderPage(n); return; }
-  ({dashboard:vDashboard, queue:vQueue, patients:vPatients}[curView]||vDashboard)(v);
+  ({dashboard:vDashboard, queue:vQueue, patients:vPatients, consult:vConsult, billing:vBilling}[curView]||vDashboard)(v);
 }
 
 /* ---------------- Dashboard ---------------- */
@@ -544,7 +541,7 @@ function vQueue(v){
     <span class="pill ${t.status}">${t.status.replace("-"," ")}</span>
     <div class="btnrow">
       ${t.status==="waiting"?`<button class="btn sm" onclick="callNext('${t.id}')">Call</button>`:""}
-      ${t.status==="in-consultation"?`<button class="btn sm secondary" onclick="toast('Consult arrives in Phase 2')">Consult</button>`:""}
+      ${t.status==="in-consultation"?`<button class="btn sm secondary" onclick="startConsult('${t.id}')">Consult</button>`:""}
       ${t.status!=="done"?`<button class="btn sm ghost" onclick="doneToken('${t.id}')">Done</button>`:""}
     </div></div>`;}).join("");
   v.innerHTML=`<div class="pagehead"><h2>Token queue</h2>
@@ -682,6 +679,274 @@ function importData(ev){
 }
 function resetData(){ if(!confirm("Reset all demo data?")) return;
   const s=DB.session; DB=seedData(); DB.session=s; audit("Demo data reset",""); save(); render(); toast("Demo data reset"); }
+
+
+/* ---------------- Consult (Phase 2) ---------------- */
+let CX=null;
+const INTERACTIONS=[
+ {a:"Aspirin",b:"Ibuprofen",msg:"Bleeding risk — avoid combining NSAIDs",sev:"red"},
+ {a:"Aspirin",b:"Diclofenac",msg:"Bleeding risk — avoid combining NSAIDs",sev:"red"},
+ {a:"Ibuprofen",b:"Diclofenac",msg:"Duplicate NSAID therapy — pick one",sev:"amber"},
+ {a:"Omeprazole",b:"Clopidogrel",msg:"Omeprazole may blunt clopidogrel — consider pantoprazole",sev:"amber"},
+ {a:"Ciprofloxacin",b:"Thyroxine",msg:"Separate by 4 hours — ciprofloxacin cuts thyroxine absorption",sev:"amber"},
+ {a:"Aspirin",b:"Clopidogrel",msg:"Dual antiplatelet — bleeding risk, monitor closely",sev:"amber"}
+];
+const ALLERGY_X=[
+ {allergy:"penicillin",drugs:["Amoxicillin"],msg:"Penicillin allergy recorded — amoxicillin is contraindicated",sev:"red"},
+ {allergy:"aspirin",drugs:["Aspirin","Ibuprofen","Diclofenac"],msg:"Aspirin allergy — NSAID cross-sensitivity possible",sev:"amber"}
+];
+const CHIPS=["Fever","Cough","Cold","Headache","Body pain","Vomiting","Diarrhea","Knee pain","Sore throat","High sugar","High BP","Breathlessness","Weakness","Acidity"];
+const DXMAP={"Fever, Cough":"Viral upper respiratory infection","Fever":"Viral fever","Cough":"Upper respiratory infection","Cold":"Common cold","High sugar":"Type 2 diabetes mellitus","High BP":"Hypertension","Knee pain":"Osteoarthritis knee","Breathlessness":"Bronchial asthma","Sore throat":"Acute pharyngitis","Diarrhea":"Acute gastroenteritis","Vomiting":"Acute gastritis","Headache":"Tension-type headache","Body pain":"Viral myalgia","Weakness":"General weakness — evaluate","Acidity":"Acid peptic disorder"};
+const KW=[["bukhar","Fever"],["fever","Fever"],["khansi","Cough"],["cough","Cough"],["sardi","Cold"],["cold","Cold"],["sir dard","Headache"],["headache","Headache"],["dard","Body pain"],["pain","Body pain"],["ache","Body pain"],["ulti","Vomiting"],["vomit","Vomiting"],["dast","Diarrhea"],["diarrhea","Diarrhea"],["loose motion","Diarrhea"],["sugar","High sugar"],["shakkar","High sugar"],["bp","High BP"],["pressure","High BP"],["saans","Breathlessness"],["breath","Breathlessness"],["ghutne","Knee pain"],["knee","Knee pain"],["gala","Sore throat"],["throat","Sore throat"],["acidity","Acidity"],["kamzori","Weakness"],["weakness","Weakness"],["chakkar","Dizziness"],["dizziness","Dizziness"]];
+
+function addDays(ds,n){ const [d,m,y]=ds.split("-").map(Number); const dt=new Date(y,m-1,d+n);
+  const p=x=>String(x).padStart(2,"0"); return `${p(dt.getDate())}-${p(dt.getMonth()+1)}-${dt.getFullYear()}`; }
+function startConsult(tokenId){ if(!needDoctor()) return;
+  const t=DB.tokens.find(x=>x.id===tokenId); if(!t) return;
+  CX={tokenId,transcript:"",rows:[],complaints:"",diagnosis:"",advice:"",followUp:addDays(todayStr(),7),scribed:false};
+  curView="consult"; buildNav(); render(); window.scrollTo(0,0);
+}
+function cxPatient(){ const t=DB.tokens.find(x=>x.id===CX.tokenId); return patientById(t.patientId); }
+
+function vConsult(v){
+  if(!needDoctor()) return;
+  const bid=DB.session.branchId;
+  if(!CX){
+    const act=DB.tokens.filter(t=>t.branchId===bid&&t.status!=="done");
+    v.innerHTML=`<div class="pagehead"><h2>Consult</h2></div>
+    <div class="card"><h3>Pick a patient from today's queue</h3>
+    ${act.map(t=>{const p=patientById(t.patientId);return `
+      <div class="token"><div class="num">${t.num}</div>
+      <div class="who"><div class="nm">${esc(p.name)} <span class="sub">${p.age}${p.sex}</span></div>
+      <div class="sub">${esc(p.village)} · ${t.type}</div></div>
+      <span class="pill ${t.status}">${t.status.replace("-"," ")}</span>
+      <button class="btn sm" onclick="startConsult('${t.id}')">Start</button></div>`;}).join("")||
+      '<p style="color:var(--muted)">No active tokens. Add a walk-in from the Queue.</p>'}</div>`;
+    return;
+  }
+  const p=cxPatient();
+  const last=DB.visits.filter(x=>x.patientId===p.id).slice(-1)[0];
+  v.innerHTML=`
+  <div class="pagehead"><h2>Consult</h2><span class="pill in-consultation">Token #${DB.tokens.find(t=>t.id===CX.tokenId).num}</span></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="avatar" style="width:48px;height:48px">${esc(p.name[0])}</div>
+      <div><b>${esc(p.name)}</b> <span class="sub" style="color:var(--muted)">${p.age}${p.sex} · ${esc(p.village)}</span><br>
+      ${p.allergies?`<span class="tag">⚠ Allergy: ${esc(p.allergies)}</span>`:""}
+      ${(p.chronic||[]).map(c=>`<span class="tag chronic">${esc(c)}</span>`).join("")}</div>
+    </div>
+    ${last?`<div class="notice">Last visit ${esc(last.date)}: <b>${esc(last.diagnosis)}</b> — ${esc(last.rx)}</div>`:""}
+  </div>
+  <div class="card"><h3>1 · Dictate or type the visit</h3>
+    <div class="btnrow" style="margin-bottom:8px">${CHIPS.map(c=>`<button class="btn sm ghost" onclick="chipIn('${c}')">${c}</button>`).join("")}</div>
+    <div class="field"><textarea id="cxTranscript" rows="4" placeholder="e.g. bukhar 3 din se, khansi, paracetamol diya 5 days...">${esc(CX.transcript)}</textarea></div>
+    <div class="btnrow">
+      <button class="btn sm secondary" id="micBtn" onclick="toggleMic()">🎤 Dictate</button>
+      <button class="btn sm ghost" id="langBtn" onclick="toggleLang()">हिंदी</button>
+      <button class="btn sm" onclick="runScribe()">✨ Run AI Scribe</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--muted)">Demo scribe uses on-device rules; the production scribe uses medical LLMs with doctor review.</p>
+  </div>
+  <div id="cxResult">${CX.scribed?scribeFormHTML():""}</div>`;
+}
+function chipIn(c){ const ta=document.getElementById("cxTranscript"); ta.value=(ta.value?ta.value+" ":"")+c+". "; ta.focus(); }
+
+let rec=null,recOn=false,recLang="hi-IN";
+function toggleLang(){ recLang=recLang==="hi-IN"?"en-IN":"hi-IN";
+  document.getElementById("langBtn").textContent=recLang==="hi-IN"?"हिंदी":"English"; }
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast("Voice not supported in this browser — type instead"); return; }
+  if(recOn){ rec.stop(); return; }
+  rec=new SR(); rec.lang=recLang; rec.interimResults=false;
+  rec.onresult=e=>{ const t=e.results[0][0].transcript; const ta=document.getElementById("cxTranscript");
+    ta.value=(ta.value+" "+t).trim(); };
+  rec.onend=()=>{recOn=false;updMic();}; rec.onerror=()=>{recOn=false;updMic();toast("Mic unavailable — check permission");};
+  try{ rec.start(); recOn=true; updMic(); }catch(e){ toast("Could not start mic"); }
+}
+function updMic(){ const b=document.getElementById("micBtn"); if(b){ b.textContent=recOn?"⏹ Stop":"🎤 Dictate"; b.classList.toggle("danger",recOn);} }
+
+function runScribe(){
+  const t=document.getElementById("cxTranscript").value; CX.transcript=t;
+  const tl=" "+t.toLowerCase()+" ";
+  const found=[]; KW.forEach(function(kv){ if(tl.indexOf(kv[0])>-1&&found.indexOf(kv[1])===-1) found.push(kv[1]); });
+  CX.complaints=found.join(", ");
+  CX.diagnosis=DXMAP[found.slice(0,2).join(", ")]||DXMAP[found[0]]||"";
+  let days=5; const dm=tl.match(/(\d+)\s*(din|days?)/); if(dm) days=parseInt(dm[1],10);
+  CX.rows=[];
+  DB.drugs.forEach(d=>{ const key=d.name.split(" ")[0].toLowerCase();
+    if(tl.indexOf(" "+key+" ")>-1||tl.indexOf(" "+key+",")>-1||tl.indexOf(" "+key+".")>-1)
+      CX.rows.push({name:d.name,freq:d.dose,days}); });
+  CX.scribed=true; render(); toast("Scribe drafted the prescription — review before saving");
+}
+function scribeFormHTML(){
+  const rows=CX.rows.map((r,i)=>`
+    <div class="prow" data-row="${i}">
+      <div class="who"><input list="drugList" data-f="name" value="${esc(r.name)}"
+        style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px"></div>
+      <input data-f="freq" value="${esc(r.freq)}" style="width:76px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px" title="Frequency">
+      <input data-f="days" type="number" min="1" value="${r.days}" style="width:60px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px" title="Days">
+      <button class="btn sm danger" onclick="delRow(${i})">✕</button>
+    </div>`).join("");
+  return `
+  <datalist id="drugList">${DB.drugs.map(d=>`<option value="${esc(d.name)}">`).join("")}</datalist>
+  <div class="card"><h3>2 · Review the scribed prescription</h3>
+    <div class="grid2" style="gap:10px">
+      <div class="field"><label>Complaints</label><input id="cxComplaints" value="${esc(CX.complaints)}"></div>
+      <div class="field"><label>Diagnosis</label><input id="cxDiagnosis" value="${esc(CX.diagnosis)}" placeholder="Doctor's diagnosis"></div>
+    </div>
+    <h3 style="margin-top:6px">Medicines</h3>
+    <div id="cxRows">${rows||'<p style="color:var(--muted);font-size:13px">No medicines detected — add rows manually.</p>'}</div>
+    <div class="btnrow" style="margin-top:8px"><button class="btn sm secondary" onclick="addRow()">+ Add medicine</button>
+    <button class="btn sm ghost" onclick="recheck()">🛡 Re-check safety</button></div>
+    <div id="cxSafety" style="margin-top:8px">${safetyHTML()}</div>
+    <div class="grid2" style="gap:10px;margin-top:8px">
+      <div class="field"><label>Advice</label><textarea id="cxAdvice" rows="2">${esc(CX.advice)}</textarea></div>
+      <div class="field"><label>Follow-up (DD-MM-YYYY)</label><input id="cxFollow" value="${esc(CX.followUp)}"></div>
+    </div>
+    <button class="btn" onclick="saveConsult()">Save &amp; complete visit</button>
+    <p style="font-size:11.5px;color:var(--muted)">Saving creates the visit record, a bill draft, and queues a WhatsApp message. The doctor's tap is the approval — nothing is final until then.</p>
+  </div>`;
+}
+function readRowsFromDOM(){
+  const out=[];
+  document.querySelectorAll("#cxRows [data-row]").forEach(el=>{
+    const g=f=>el.querySelector(`[data-f="${f}"]`).value.trim();
+    const name=g("name"); if(name) out.push({name,freq:g("freq")||"—",days:parseInt(g("days"),10)||1});
+  });
+  return out;
+}
+function addRow(){ CX.rows=readRowsFromDOM(); CX.rows.push({name:"",freq:"1-0-1",days:5}); renderRows(); }
+function delRow(i){ CX.rows=readRowsFromDOM(); CX.rows.splice(i,1); renderRows(); }
+function renderRows(){
+  document.getElementById("cxRows").innerHTML=CX.rows.map((r,i)=>`
+    <div class="prow" data-row="${i}">
+      <div class="who"><input list="drugList" data-f="name" value="${esc(r.name)}"
+        style="width:100%;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px"></div>
+      <input data-f="freq" value="${esc(r.freq)}" style="width:76px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px">
+      <input data-f="days" type="number" min="1" value="${r.days}" style="width:60px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px">
+      <button class="btn sm danger" onclick="delRow(${i})">✕</button>
+    </div>`).join("")||'<p style="color:var(--muted);font-size:13px">No medicines — add rows manually.</p>';
+  recheck();
+}
+function checkSafety(rows,p){
+  const warns=[], names=rows.map(r=>r.name);
+  INTERACTIONS.forEach(ix=>{ if(names.some(n=>n.indexOf(ix.a)>-1)&&names.some(n=>n.indexOf(ix.b)>-1)) warns.push(ix); });
+  const alg=(p.allergies||"").toLowerCase();
+  ALLERGY_X.forEach(ax=>{ if(ax.drugs.length&&alg.indexOf(ax.allergy)>-1)
+    ax.drugs.forEach(d=>{ if(names.some(n=>n.indexOf(d)>-1)) warns.push(ax); }); });
+  return warns;
+}
+function safetyHTML(){
+  const rows=CX.rows&&CX.rows.length?CX.rows:readRowsSafe();
+  const warns=checkSafety(rows,cxPatient());
+  if(!warns.length) return `<div class="notice">✓ Safety Checker: no interactions or allergy conflicts found. (Demo rule set — production uses clinical databases.)</div>`;
+  return warns.map(w=>`<div class="warn ${w.sev==="amber"?"amber":""}">⚠ <b>${w.sev==="red"?"STOP — ":"Caution: "}</b>${esc(w.msg)}</div>`).join("");
+}
+function readRowsSafe(){ try{ return readRowsFromDOM(); }catch(e){ return CX.rows||[]; } }
+function recheck(){ CX.rows=readRowsFromDOM();
+  document.getElementById("cxSafety").innerHTML=safetyHTML(); }
+function readIntoCX(){
+  CX.complaints=document.getElementById("cxComplaints").value.trim();
+  CX.diagnosis=document.getElementById("cxDiagnosis").value.trim();
+  CX.advice=document.getElementById("cxAdvice").value.trim();
+  CX.followUp=document.getElementById("cxFollow").value.trim();
+  CX.rows=readRowsFromDOM();
+}
+function saveConsult(){
+  readIntoCX();
+  const t=DB.tokens.find(x=>x.id===CX.tokenId), p=cxPatient(), bid=DB.session.branchId;
+  const rx=CX.rows.map(r=>`${r.name} ${r.freq} × ${r.days}d`).join("; ");
+  DB.visits.push({id:"v"+Date.now(),patientId:p.id,branchId:bid,date:todayStr(),
+    complaint:CX.complaints||"—",diagnosis:CX.diagnosis||"—",rx:rx||"—",
+    advice:CX.advice||"—",followUp:CX.followUp});
+  if(CX.followUp) p.followUp=CX.followUp;
+  const items=[["Consultation",DB.fees[bid]||300]];
+  CX.rows.forEach(r=>{ const d=DB.drugs.find(x=>x.name===r.name); items.push([r.name+" ("+r.days+" days)", d?d.mrp:50]); });
+  const bill={id:"bl"+Date.now(),no:"R-"+(DB.billSeq++),patientId:p.id,branchId:bid,date:todayStr(),items,paid:false,mode:""};
+  DB.bills.push(bill);
+  const tpl=DB.templates.find(x=>x.id==="w3").text;
+  DB.messages.push({id:"m"+Date.now(),to:p.id,ts:nowStr(),status:"queued (demo)",
+    text:tpl.replace("{name}",p.name).replace("{medicines}",CX.rows.map(r=>r.name).join(", ")||"—").replace("{followup}",CX.followUp)});
+  t.status="done";
+  audit("Consult completed",p.name+" · "+CX.rows.length+" meds");
+  audit("Bill drafted",bill.no); save();
+  const no=bill.no; CX=null; go("queue");
+  toast("Visit saved · bill "+no+" drafted · WhatsApp queued (demo)");
+}
+
+/* ---------------- Billing (Phase 2) ---------------- */
+let BILL_MODE="";
+function vBilling(v){
+  const bid=DB.session.branchId;
+  const bills=DB.bills.filter(b=>b.branchId===bid).slice().reverse();
+  const due=bills.filter(b=>!b.paid).length;
+  v.innerHTML=`<div class="pagehead"><h2>Billing</h2>
+    <span class="pill ${due?"waiting":"done"}">${due} unpaid</span></div>
+  ${bills.map(b=>{const p=patientById(b.patientId);const tot=b.items.reduce((s,i)=>s+i[1],0);return `
+    <div class="prow" onclick="openBill('${b.id}')">
+      <div class="avatar">₹</div>
+      <div class="who"><div class="nm">${b.no} — ${esc(p.name)}</div>
+      <div class="sub">${b.date} · ${inr(tot)}${b.mode?" · "+b.mode:""}</div></div>
+      <span class="pill ${b.paid?"done":"waiting"}">${b.paid?"paid":"unpaid"}</span></div>`;}).join("")||
+    '<div class="card"><p style="color:var(--muted)">No bills yet.</p></div>'}`;
+}
+function openBill(id){
+  const b=DB.bills.find(x=>x.id===id), p=patientById(b.patientId); BILL_MODE=b.mode||"";
+  const rows=b.items.map((it,i)=>`
+    <div class="prow"><div class="who"><div class="nm" style="font-size:14px">${esc(it[0])}</div></div>
+    <span style="font-size:14px">₹</span>
+    <input type="number" min="0" value="${it[1]}" data-amt="${i}"
+      style="width:84px;padding:8px;border:1.5px solid var(--line);border-radius:8px;font-size:14px"></div>`).join("");
+  openModal(`<h3>Bill ${b.no} ${b.paid?'<span class="pill done">paid</span>':'<span class="pill waiting">unpaid</span>'}</h3>
+    <p style="color:var(--muted);font-size:13px;margin-top:0">${esc(p.name)} · ${b.date}</p>
+    <div>${rows}</div>
+    <div class="field" style="margin-top:10px"><label>Payment mode</label><div class="btnrow" id="modeRow">
+      <button class="btn sm ${BILL_MODE==="UPI"?"":"ghost"}" onclick="setBillMode('UPI')">UPI</button>
+      <button class="btn sm ${BILL_MODE==="Cash"?"":"ghost"}" onclick="setBillMode('Cash')">Cash</button></div></div>
+    <div id="qrBox" style="text-align:center;margin:6px 0">${BILL_MODE==="UPI"?fauxQR(b.id):""}</div>
+    <div class="btnrow no-print">
+      ${b.paid?"":`<button class="btn" onclick="markPaid('${b.id}')">Mark paid</button>`}
+      <button class="btn secondary" onclick="saveBillAmounts('${b.id}');openReceipt('${b.id}')">Receipt</button>
+      <button class="btn ghost" onclick="saveBillAmounts('${b.id}');closeModal()">Close</button></div>`);
+}
+function setBillMode(m){ BILL_MODE=m;
+  const btns=document.querySelectorAll("#modeRow .btn");
+  btns[0].className="btn sm "+(m==="UPI"?"":"ghost"); btns[1].className="btn sm "+(m==="Cash"?"":"ghost");
+  document.getElementById("qrBox").innerHTML=m==="UPI"?fauxQR("q"+Date.now()):""; }
+function saveBillAmounts(id){ const b=DB.bills.find(x=>x.id===id);
+  document.querySelectorAll("[data-amt]").forEach(inp=>{ b.items[+inp.dataset.amt][1]=Math.max(0,parseInt(inp.value,10)||0); });
+  save(); }
+function markPaid(id){ const b=DB.bills.find(x=>x.id===id);
+  if(!BILL_MODE){ toast("Choose UPI or Cash first"); return; }
+  saveBillAmounts(id); b.paid=true; b.mode=BILL_MODE;
+  audit("Bill paid",b.no+" "+inr(b.items.reduce((s,i)=>s+i[1],0))+" via "+BILL_MODE);
+  save(); closeModal(); render(); toast("Bill "+b.no+" marked paid"); }
+function fauxQR(seed){
+  let h=2166136261; for(const c of seed){ h^=c.codePointAt(0); h=Math.imul(h,16777619); }
+  let x=h>>>0; const rnd=()=>{ x=(Math.imul(x,1664525)+1013904223)>>>0; return x/4294967296; };
+  let cells=""; for(let i=0;i<441;i++) cells+=`<span style="background:${rnd()>0.52?"#14332f":"#ffffff"}"></span>`;
+  return `<div style="display:inline-block;background:#fff;padding:10px;border-radius:10px;box-shadow:var(--shadow)">
+    <div style="display:grid;grid-template-columns:repeat(21,6px);grid-auto-rows:6px">${cells}</div></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">DEMO QR — not a real payment code</div>`;
+}
+function openReceipt(id){
+  const b=DB.bills.find(x=>x.id===id), p=patientById(b.patientId), br=DB.branches.find(x=>x.id===b.branchId);
+  const tot=b.items.reduce((s,i)=>s+i[1],0); closeModal();
+  document.getElementById("view").innerHTML=`<div class="card" style="max-width:430px;margin:0 auto">
+    <div style="text-align:center"><b style="font-size:17px">${esc(br.name)}</b><br>
+    <span style="font-size:12px;color:var(--muted)">${esc(br.area)} · ${esc(br.phone)}</span></div><hr>
+    <div style="font-size:13px">Receipt <b>${b.no}</b> · ${b.date}<br>Patient: <b>${esc(p.name)}</b></div><hr>
+    ${b.items.map(it=>`<div style="display:flex;justify-content:space-between;font-size:14px;padding:3px 0">
+      <span>${esc(it[0])}</span><b>${inr(it[1])}</b></div>`).join("")}<hr>
+    <div style="display:flex;justify-content:space-between;font-size:18px"><b>Total</b><b>${inr(tot)}</b></div>
+    <div style="font-size:13px;color:var(--muted)">Mode: ${b.mode||"—"} · <b>${b.paid?"PAID":"UNPAID"}</b></div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:10px">Received with thanks · ClinicOS demo</div>
+    <div class="btnrow no-print" style="margin-top:12px">
+      <button class="btn" onclick="window.print()">Print</button>
+      <button class="btn ghost" onclick="render()">Back</button></div></div>`;
+  window.scrollTo(0,0);
+}
 
 /* ---------------- Init ---------------- */
 load();
