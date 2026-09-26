@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ClinicOS — Clinic & Hospital Management</title>
+<style>
+:root{
+  --teal:#0d9488; --teal-dark:#0b7c72; --teal-light:#e6f7f5;
+  --bg:#f2f6f6; --card:#ffffff; --ink:#14332f; --muted:#5f716e;
+  --line:#e2eae9; --danger:#dc2626; --amber:#b45309; --amber-bg:#fef3e2;
+  --green:#15803d; --green-bg:#e9f7ee; --red-bg:#fdecec;
+  --radius:14px; --shadow:0 2px 10px rgba(20,51,47,.07);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{font-family:var(--font); background:var(--bg); color:var(--ink); font-size:15px; line-height:1.45;}
+h1,h2,h3{margin:0 0 .5em;}
+p{margin:.4em 0;}
+button{font-family:var(--font);}
+
+/* ---------- Login ---------- */
+#loginView{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  background:linear-gradient(160deg,#0d9488 0%,#0a5f59 100%);}
+.login-card{background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:400px; box-shadow:0 12px 40px rgba(0,0,0,.25);}
+.login-card .brand{text-align:center; margin-bottom:18px;}
+.brand-mark{width:56px;height:56px;border-radius:16px;background:var(--teal);color:#fff;display:inline-flex;
+  align-items:center;justify-content:center;font-size:28px;font-weight:800;}
+.brand h1{font-size:24px; margin:.4em 0 .1em;}
+.brand p{color:var(--muted); font-size:13px; margin:0;}
+.demo-banner{background:#fff8e6;border:1px solid #f0dfae;color:#8a6d1a;border-radius:10px;padding:8px 12px;
+  font-size:12.5px;margin-bottom:14px;text-align:center;}
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px;}
+.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;
+  font-size:15px;font-family:var(--font);background:#fff;color:var(--ink);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);}
+.role-pick{display:flex;gap:10px;}
+.role-opt{flex:1;border:2px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;}
+.role-opt.sel{border-color:var(--teal);background:var(--teal-light);}
+.role-opt .ic{font-size:24px;}
+.role-opt .t{font-weight:700;font-size:14px;margin-top:4px;}
+.btn{display:inline-block;border:none;border-radius:12px;padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;
+  background:var(--teal);color:#fff;width:100%;}
+.btn:active{transform:scale(.98);}
+.btn.secondary{background:#fff;color:var(--teal);border:1.5px solid var(--teal);}
+.btn.ghost{background:#eef4f3;color:var(--ink);}
+.btn.danger{background:var(--danger);}
+.btn.sm{padding:8px 12px;font-size:13px;width:auto;border-radius:9px;}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ---------- App shell ---------- */
+#appView{display:none; min-height:100vh;}
+.topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+  padding:10px 16px;display:flex;align-items:center;gap:10px;}
+.topbar .bmark{width:34px;height:34px;border-radius:10px;background:var(--teal);color:#fff;display:flex;
+  align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+.topbar .clinic{font-weight:800;font-size:14.5px;line-height:1.2;}
+.topbar .clinic small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;}
+.topbar .spacer{flex:1;}
+.role-badge{font-size:11.5px;font-weight:700;background:var(--teal-light);color:var(--teal-dark);
+  padding:5px 10px;border-radius:20px;white-space:nowrap;}
+.layout{display:flex; max-width:1200px; margin:0 auto;}
+.sidebar{width:220px;flex-shrink:0;padding:16px 0 16px 16px;display:block;}
+.nav{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:8px;position:sticky;top:76px;}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;border:none;background:none;text-align:left;
+  padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;}
+.nav button .ic{font-size:17px;width:22px;text-align:center;}
+.nav button.active{background:var(--teal-light);color:var(--teal-dark);}
+.nav .sec{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
+  padding:10px 12px 4px;}
+.main{flex:1;padding:16px;min-width:0;}
+.pagehead{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.pagehead h2{font-size:20px;margin:0;flex:1;}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.stat{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;}
+.stat .v{font-size:24px;font-weight:800;color:var(--teal-dark);}
+.stat .l{font-size:12px;color:var(--muted);font-weight:600;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+/* ---------- Queue / lists ---------- */
+.token{display:flex;align-items:center;gap:12px;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:12px 14px;margin-bottom:10px;}
+.token .num{width:46px;height:46px;border-radius:12px;background:var(--teal-light);color:var(--teal-dark);
+  font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.pill.waiting{background:#fff7e6;color:#a16207;}
+.pill.in-consultation{background:#e0f2ff;color:#0369a1;}
+.pill.done{background:var(--green-bg);color:var(--green);}
+.token .who{flex:1;min-width:0;}
+.token .who .nm{font-weight:700;}
+.token .who .sub{font-size:12px;color:var(--muted);}
+.prow{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
+.prow:last-child{border-bottom:none;}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--teal-light);color:var(--teal-dark);
+  display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;}
+.prow .who{flex:1;min-width:0;}
+.prow .nm{font-weight:700;}
+.prow .sub{font-size:12px;color:var(--muted);}
+.tag{display:inline-block;font-size:11px;font-weight:700;background:#fff1f1;color:var(--danger);
+  border-radius:6px;padding:2px 7px;margin-right:4px;}
+.tag.chronic{background:#eef4ff;color:#1d4ed8;}
+.timeline{border-left:2px solid var(--line);margin:8px 0 0 6px;padding-left:16px;}
+.tl-item{position:relative;padding-bottom:14px;}
+.tl-item:before{content:"";position:absolute;left:-22.5px;top:4px;width:11px;height:11px;border-radius:50%;
+  background:var(--teal);border:2px solid #fff;box-shadow:0 0 0 2px var(--teal-light);}
+.tl-item .dt{font-size:11.5px;color:var(--muted);font-weight:700;}
+.warn{background:var(--red-bg);border:1px solid #f5c6c6;color:#991b1b;border-radius:10px;padding:10px 12px;
+  font-size:13px;margin:8px 0;}
+.warn.amber{background:var(--amber-bg);border-color:#f0dcb4;color:#92400e;}
+.notice{background:#eef6ff;border:1px solid #cfe4fb;color:#1e40af;border-radius:10px;padding:10px 12px;
+  font-size:13px;margin:8px 0;}
+
+/* ---------- Modal / toast / misc ---------- */
+.modal-veil{position:fixed;inset:0;background:rgba(10,30,28,.5);display:none;align-items:flex-end;justify-content:center;z-index:100;}
+.modal-veil.open{display:flex;}
+.modal{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:20px;}
+.modal h3{margin-top:0;}
+#toasts{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{background:#14332f;color:#fff;padding:10px 18px;border-radius:24px;font-size:13.5px;font-weight:600;
+  box-shadow:0 4px 16px rgba(0,0,0,.25);animation:tin .25s ease;}
+@keyframes tin{from{opacity:0;transform:translateY(8px);}to{opacity:1;}}
+table.log{width:100%;border-collapse:collapse;font-size:13px;}
+table.log th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  padding:8px;border-bottom:1px solid var(--line);}
+table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;}
+.consent-box{background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;
+  color:var(--muted);margin:8px 0;}
+.consent-box label{display:flex;gap:8px;align-items:flex-start;color:var(--ink);font-size:13.5px;font-weight:600;}
+.agentrow{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+.agentrow:last-child{border:none;}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 0 3px var(--green-bg);}
+.dot.off{background:#9aa5a3;box-shadow:none;}
+.phase-tag{font-size:10.5px;font-weight:800;background:#ede9fe;color:#5b21b6;border-radius:6px;padding:3px 8px;
+  text-transform:uppercase;letter-spacing:.05em;}
+.placeholder{text-align:center;padding:44px 20px;color:var(--muted);}
+.placeholder .big{font-size:44px;margin-bottom:8px;}
+.placeholder h3{color:var(--ink);}
+
+/* ---------- Bottom nav (mobile) ---------- */
+.bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+  z-index:40;padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
+.bottomnav .row{display:flex;}
+.bottomnav button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:10px;font-weight:700;color:var(--muted);padding:6px 2px;cursor:pointer;}
+.bottomnav button .ic{font-size:20px;}
+.bottomnav button.active{color:var(--teal-dark);}
+.sheet-veil{position:fixed;inset:0;background:rgba(10,30,28,.5);display:none;z-index:90;}
+.sheet-veil.open{display:block;}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;z-index:95;
+  padding:12px 16px calc(20px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .25s ease;
+  max-height:70vh;overflow:auto;}
+.sheet.open{transform:translateY(0);}
+.sheet button.mi{display:flex;align-items:center;gap:12px;width:100%;border:none;background:none;text-align:left;
+  padding:13px 8px;font-size:15px;font-weight:600;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);}
+.sheet button.mi .ic{font-size:19px;width:24px;}
+
+@media (max-width:820px){
+  .sidebar{display:none;}
+  .bottomnav{display:block;}
+  .main{padding:12px 12px 96px;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .grid2{grid-template-columns:1fr;}
+  .modal-veil{align-items:flex-end;}
+}
+@media (min-width:821px){
+  .modal-veil{align-items:center;justify-content:center;}
+  .modal{border-radius:18px;}
+}
+@media print{
+  .topbar,.sidebar,.bottomnav,.btnrow,.no-print{display:none !important;}
+  body{background:#fff;}
+  .card{box-shadow:none;border:1px solid #ddd;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginView">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-mark">+</div>
+      <h1>ClinicOS</h1>
+      <p>AI-powered clinic &amp; hospital management</p>
+    </div>
+    <div class="demo-banner">Demo build &mdash; sample data only. Nothing leaves this device.</div>
+    <div class="field">
+      <label>I am a</label>
+      <div class="role-pick">
+        <div class="role-opt sel" id="roleDoctor" onclick="pickRole('doctor')">
+          <div class="ic">&#x1F468;&#x200D;&#x2695;&#xFE0F;</div><div class="t">Doctor</div>
+        </div>
+        <div class="role-opt" id="roleRecep" onclick="pickRole('receptionist')">
+          <div class="ic">&#x1F469;&#x200D;&#x1F4BB;</div><div class="t">Receptionist</div>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Branch</label>
+      <select id="loginBranch"></select>
+    </div>
+    <div class="field">
+      <label>Demo PIN (any 4 digits)</label>
+      <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+    </div>
+    <button class="btn" onclick="doLogin()">Sign in securely</button>
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:12px;">
+      Role-based access &bull; every action is audit-logged
+    </p>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appView">
+  <div class="topbar">
+    <div class="bmark">+</div>
+    <div class="clinic"><span id="tbClinic">ClinicOS</span><small id="tbBranch"></small></div>
+    <div class="spacer"></div>
+    <span class="role-badge" id="tbRole"></span>
+    <button class="btn sm ghost" onclick="switchBranch()" title="Switch branch">&#x1F504;</button>
+    <button class="btn sm ghost" onclick="doLogout()" title="Sign out">&#x23FB;</button>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar"><nav class="nav" id="sideNav"></nav></aside>
+    <main class="main" id="view"></main>
+  </div>
+
+  <div class="bottomnav"><div class="row" id="bottomNav"></div></div>
+  <div class="sheet-veil" id="sheetVeil" onclick="closeSheet()"></div>
+  <div class="sheet" id="moreSheet"></div>
+</div>
+
+<div class="modal-veil" id="modalVeil" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalBox"></div>
+</div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* ================================================================
+   ClinicOS demo — single-file app. All data lives in localStorage.
+   ================================================================ */
+const DB_KEY = "clinicos_v1";
+const AVG_CONSULT_MIN = 8;
+
+/* ---------------- Seed data ---------------- */
+function seedData(){
+  const branches = [
+    {id:"b1", name:"Sharma Multispeciality Clinic", area:"Main Road", phone:"9876501234"},
+    {id:"b2", name:"Sharma Clinic", area:"Station Road", phone:"9876501235"}
+  ];
+  const P = (id,name,age,sex,phone,village,branchId,extra)=>Object.assign(
+    {id,name,age,sex,phone,village,branchId,allergies:"",chronic:[],consentTs:"2026-09-20 10:02",followUp:""},
+    extra||{});
+  const patients = [
+    P("p01","Ramesh Gupta",54,"M","9812012345","Rampur","b1",{chronic:["Diabetes","Hypertension"],followUp:"2026-09-28"}),
+    P("p02","Sunita Yadav",38,"F","9812023456","Rampur","b1",{followUp:"2026-09-27"}),
+    P("p03","Amit Patel",29,"M","9812034567","Chandpur","b1",{allergies:"Penicillin"}),
+    P("p04","Meera Devi",63,"F","9812045678","Rampur","b1",{chronic:["Hypertension","Arthritis"],followUp:"2026-09-26"}),
+    P("p05","Vikram Singh",45,"M","9812056789","Kishanganj","b2",{chronic:["Asthma"]}),
+    P("p06","Priya Sharma",24,"F","9812067890","Rampur","b1",{followUp:"2026-10-02"}),
+    P("p07","Harish Kumar",51,"M","9812078901","Chandpur","b1",{chronic:["Diabetes"],followUp:"2026-09-29"}),
+    P("p08","Kavita Rani",33,"F","9812089012","Kishanganj","b2"),
+    P("p09","Suresh Yadav",60,"M","9812090123","Rampur","b1",{chronic:["Hypertension"],allergies:"Sulfa drugs"}),
+    P("p10","Anita Singh",41,"F","9812101234","Chandpur","b2",{followUp:"2026-09-30"}),
+    P("p11","Rajesh Verma",36,"M","9812112345","Rampur","b1"),
+    P("p12","Pooja Gupta",27,"F","9812123456","Kishanganj","b2",{followUp:"2026-09-26"}),
+    P("p13","Mohan Lal",70,"M","9812134567","Rampur","b1",{chronic:["Arthritis","Hypertension"]}),
+    P("p14","Seema Devi",49,"F","9812145678","Chandpur","b1",{chronic:["Thyroid"],followUp:"2026-10-05"}),
+    P("p15","Deepak Kumar",32,"M","9812156789","Kishanganj","b2"),
+    P("p16","Rekha Singh",55,"F","9812167890","Rampur","b1",{chronic:["Diabetes"],followUp:"2026-09-27"}),
+    P("p17","Arjun Patel",22,"M","9812178901","Chandpur","b2"),
+    P("p18","Lakshmi Devi",58,"F","9812189012","Rampur","b1",{chronic:["Hypertension"]}),
+    P("p19","Sanjay Tiwari",44,"M","9812190123","Kishanganj","b2",{allergies:"Aspirin"}),
+    P("p20","Neha Verma",19,"F","9812201234","Rampur","b1"),
+    P("p21","Gopal Singh",66,"M","9812212345","Chandpur","b1",{chronic:["COPD"],followUp:"2026-10-01"}),
+    P("p22","Divya Sharma",31,"F","9812223456","Kishanganj","b2"),
+    P("p23","Ravi Kumar",39,"M","9812234567","Rampur","b1"),
+    P("p24","Usha Rani",47,"F","9812245678","Chandpur","b2",{chronic:["Migraine"]})
+  ];
+  const T = (id,num,patientId,branchId,status,type,mins)=>({id,num,patientId,branchId,status,type,arrived:mins});
+  const tokens = [
+    T("t01",1,"p04","b1","done","walk-in",-95), T("t02",2,"p01","b1","done","appointment",-80),
+    T("t03",3,"p09","b1","done","walk-in",-64), T("t04",4,"p02","b1","done","appointment",-50),
+    T("t05",5,"p07","b1","in-consultation","walk-in",-12),
+    T("t06",6,"p13","b1","waiting","walk-in",-6), T("t07",7,"p06","b1","waiting","appointment",-2),
+    T("t08",8,"p11","b1","waiting","walk-in",2), T("t09",9,"p18","b1","waiting","walk-in",6),
+    T("t10",10,"p23","b1","waiting","appointment",10),
+    T("t11",1,"p05","b2","done","walk-in",-70), T("t12",2,"p08","b2","waiting","walk-in",-4)
+  ];
+  const visits = [
+    {id:"v01",patientId:"p01",branchId:"b1",date:"12-09-2026",complaint:"High sugar, fatigue",diagnosis:"Type 2 DM — uncontrolled",
+     rx:"Metformin 500mg 1-0-1 × 30 days; Glimepiride 1mg 1-0-0 × 30 days",advice:"Low sugar diet, walk 30 min daily",followUp:"28-09-2026"},
+    {id:"v02",patientId:"p01",branchId:"b1",date:"15-08-2026",complaint:"Routine sugar check",diagnosis:"Type 2 DM",
+     rx:"Metformin 500mg 1-0-1 × 30 days",advice:"Continue diet control",followUp:"12-09-2026"},
+    {id:"v03",patientId:"p04",branchId:"b1",date:"26-09-2026",complaint:"Knee pain, BP high",diagnosis:"Osteoarthritis knee; Hypertension",
+     rx:"Amlodipine 5mg 1-0-0 × 30 days; Paracetamol 650mg SOS",advice:"Hot fomentation, reduce salt",followUp:"26-10-2026"},
+    {id:"v04",patientId:"p04",branchId:"b2",date:"02-09-2026",complaint:"Knee pain",diagnosis:"Osteoarthritis knee",
+     rx:"Paracetamol 650mg 1-1-1 × 5 days",advice:"Physiotherapy",followUp:"26-09-2026"},
+    {id:"v05",patientId:"p09",branchId:"b1",date:"26-09-2026",complaint:"Headache, dizziness",diagnosis:"Hypertension",
+     rx:"Telmisartan 40mg 1-0-0 × 30 days",advice:"BP monitoring at home",followUp:"26-10-2026"},
+    {id:"v06",patientId:"p02",branchId:"b1",date:"26-09-2026",complaint:"Fever 3 days, cough",diagnosis:"Viral URI",
+     rx:"Paracetamol 650mg 1-1-1 × 3 days; Cetirizine 10mg 0-0-1 × 5 days",advice:"Warm fluids, rest",followUp:"27-09-2026"},
+    {id:"v07",patientId:"p07",branchId:"b1",date:"20-09-2026",complaint:"Increased thirst, urination",diagnosis:"Type 2 DM — newly detected",
+     rx:"Metformin 500mg 1-0-1 × 15 days",advice:"Diet chart given",followUp:"29-09-2026"},
+    {id:"v08",patientId:"p16",branchId:"b1",date:"18-09-2026",complaint:"Sugar review",diagnosis:"Type 2 DM — controlled",
+     rx:"Metformin 500mg 1-0-1 × 30 days",advice:"Continue",followUp:"27-09-2026"},
+    {id:"v09",patientId:"p05",branchId:"b2",date:"26-09-2026",complaint:"Breathlessness at night",diagnosis:"Bronchial asthma",
+     rx:"Salbutamol inhaler 2 puffs SOS; Montelukast 10mg 0-0-1 × 15 days",advice:"Avoid dust, smoke",followUp:"11-10-2026"},
+    {id:"v10",patientId:"p12",branchId:"b2",date:"22-09-2026",complaint:"Antenatal checkup",diagnosis:"Pregnancy 28 weeks — normal",
+     rx:"Iron + Folic acid 1-0-0 × 30 days; Calcium 500mg 0-1-0 × 30 days",advice:"Next visit in 2 weeks",followUp:"26-09-2026"},
+    {id:"v11",patientId:"p10",branchId:"b2",date:"24-09-2026",complaint:"Fever, body ache",diagnosis:"Viral fever",
+     rx:"Paracetamol 650mg 1-1-1 × 3 days",advice:"Hydration",followUp:"30-09-2026"}
+  ];
+  const drugs = [
+    ["Paracetamol 650mg","1-1-1","Fever, pain"],["Azithromycin 500mg","1-0-0","Bacterial infection"],
+    ["Amoxicillin 500mg","1-1-1","Bacterial infection"],["Cetirizine 10mg","0-0-1","Allergy, cold"],
+    ["Metformin 500mg","1-0-1","Diabetes"],["Glimepiride 1mg","1-0-0","Diabetes"],
+    ["Amlodipine 5mg","1-0-0","Hypertension"],["Telmisartan 40mg","1-0-0","Hypertension"],
+    ["Losartan 50mg","1-0-0","Hypertension"],["Atorvastatin 10mg","0-0-1","Cholesterol"],
+    ["Omeprazole 20mg","1-0-0","Acidity"],["Pantoprazole 40mg","1-0-0","Acidity"],
+    ["Domperidone 10mg","1-1-1","Nausea, vomiting"],["Ondansetron 4mg","SOS","Vomiting"],
+    ["Ibuprofen 400mg","1-1-1","Pain, inflammation"],["Diclofenac 50mg","1-0-1","Pain"],
+    ["Montelukast 10mg","0-0-1","Asthma, allergy"],["Salbutamol inhaler","2 puffs SOS","Asthma"],
+    ["Thyroxine 50mcg","1-0-0","Hypothyroid"],["Iron + Folic acid","1-0-0","Anemia, pregnancy"],
+    ["Calcium 500mg","0-1-0","Calcium deficiency"],["Vitamin D3 60k","weekly","Vitamin D deficiency"],
+    ["Ciprofloxacin 500mg","1-0-1","Bacterial infection"],["Doxycycline 100mg","1-0-1","Infection"],
+    ["Fluconazole 150mg","single dose","Fungal infection"],["Albendazole 400mg","single dose","Worms"],
+    ["ORS powder","as needed","Dehydration"],["Zinc 20mg","1-0-0","Diarrhea (child)"],
+    ["Ambroxol syrup","1-1-1","Cough"],["Dextromethorphan syrup","0-0-1","Dry cough"],
+    ["Betadine gargle","2-3 times daily","Sore throat"],["Multivitamin","1-0-0","General weakness"],
+    ["Aspirin 75mg","1-0-0","Blood thinner"],["Clopidogrel 75mg","1-0-0","Blood thinner"],
+    ["Insulin Glargine","as prescribed","Diabetes"]
+  ].map((d,i)=>({id:"d"+(i+1),name:d[0],dose:d[1],use:d[2]}));
+  const templates = [
+    {id:"w1",name:"Token confirmed",text:"Namaste {name}, your token #{token} at {clinic} is confirmed. Please arrive 15 min early."},
+    {id:"w2",name:"Queue update",text:"{name}, your turn is in ~{eta} min at {clinic}. Token #{token}."},
+    {id:"w3",name:"Prescription ready",text:"{name}, your prescription from today's visit is ready. {medicines}. Follow-up: {followup}."},
+    {id:"w4",name:"Lab report ready",text:"{name}, your lab report is ready. Please collect it from {clinic}."},
+    {id:"w5",name:"Follow-up reminder",text:"Namaste {name}, this is a reminder for your follow-up visit on {followup} at {clinic}."},
+    {id:"w6",name:"Payment receipt",text:"{name}, payment of ₹{amount} received at {clinic}. Receipt no. {billno}. Dhanyavaad!"}
+  ];
+  const bills = [
+    {id:"bl01",no:"R-101",patientId:"p04",branchId:"b1",date:"26-09-2026",items:[["Consultation",300],["Paracetamol 650mg × 10",80]],paid:true,mode:"UPI"},
+    {id:"bl02",no:"R-102",patientId:"p01",branchId:"b1",date:"26-09-2026",items:[["Consultation",300],["Metformin 500mg × 30",95],["Glimepiride 1mg × 30",70]],paid:true,mode:"Cash"},
+    {id:"bl03",no:"R-103",patientId:"p09",branchId:"b1",date:"26-09-2026",items:[["Consultation",300],["Telmisartan 40mg × 30",120]],paid:true,mode:"UPI"},
+    {id:"bl04",no:"R-104",patientId:"p02",branchId:"b1",date:"26-09-2026",items:[["Consultation",300],["Paracetamol 650mg × 10",80],["Cetirizine 10mg × 5",45]],paid:false,mode:""},
+    {id:"bl05",no:"R-105",patientId:"p05",branchId:"b2",date:"26-09-2026",items:[["Consultation",250],["Montelukast 10mg × 15",140]],paid:true,mode:"UPI"}
+  ];
+  return {branches,patients,tokens:tokens,visits,drugs,templates,bills,
+    messages:[],auditLog:[],session:null,tokenSeq:{b1:11,b2:3},billSeq:106};
+}
+
+/* ---------------- Data layer ---------------- */
+let DB=null;
+function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }catch(e){} }
+function load(){
+  try{ const raw=localStorage.getItem(DB_KEY); if(raw){ DB=JSON.parse(raw); return; } }catch(e){}
+  DB=seedData(); save();
+}
+function audit(action, entity){
+  DB.auditLog.unshift({ts:nowStr(), user:DB.session?DB.session.role:"system",
+    role:DB.session?DB.session.role:"-", action, entity:entity||"-"});
+  if(DB.auditLog.length>300) DB.auditLog.length=300;
+}
+function nowStr(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function todayStr(){ const d=new Date(), p=n=>String(n).padStart(2,"0"); return `${p(d.getDate())}-${p(d.getMonth()+1)}-${d.getFullYear()}`; }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function inr(n){ return "₹"+Number(n).toLocaleString("en-IN"); }
+function patientById(id){ return DB.patients.find(p=>p.id===id); }
+function branchTokens(bid){ return DB.tokens.filter(t=>t.branchId===bid).sort((a,b)=>a.num-b.num); }
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
+  document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(),2400); }
+function openModal(html){ document.getElementById("modalBox").innerHTML=html;
+  document.getElementById("modalVeil").classList.add("open"); }
+function closeModal(){ document.getElementById("modalVeil").classList.remove("open"); }
+
+/* ---------------- Navigation ---------------- */
+const NAV=[
+  {id:"dashboard",t:"Dashboard",ic:"\uD83D\uDCCA"},
+  {id:"queue",t:"Token Queue",ic:"\uD83C\uDFAB"},
+  {id:"patients",t:"Patients",ic:"\uD83D\uDC65"},
+  {id:"consult",t:"Consult",ic:"\uD83E\uDE7A",phase:"Phase 2"},
+  {id:"billing",t:"Billing",ic:"\uD83E\uDDFE",phase:"Phase 2"},
+  {id:"whatsapp",t:"WhatsApp",ic:"\uD83D\uDCAC",phase:"Phase 3"},
+  {id:"branches",t:"Branches",ic:"\uD83C\uDFE5",phase:"Phase 3"},
+  {id:"reports",t:"Reports",ic:"\uD83D\uDCC8",phase:"Phase 3"},
+  {id:"agents",t:"AI Agents",ic:"\u2728",phase:"Phase 4"},
+  {id:"security",t:"Security & Audit",ic:"\uD83D\uDD12",phase:"Phase 4"},
+  {id:"settings",t:"Settings",ic:"\u2699\uFE0F",phase:"Phase 4"}
+];
+let curView="dashboard";
+function buildNav(){
+  const main=NAV.slice(0,3);
+  document.getElementById("sideNav").innerHTML =
+    '<div class="sec">Clinic</div>'+NAV.slice(0,8).map(n=>
+      `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
+       <span class="ic">${n.ic}</span>${n.t}${n.phase?` <span class="phase-tag">${n.phase}</span>`:""}</button>`).join("")+
+    '<div class="sec">System</div>'+NAV.slice(8).map(n=>
+      `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
+       <span class="ic">${n.ic}</span>${n.t}${n.phase?` <span class="phase-tag">${n.phase}</span>`:""}</button>`).join("");
+  const mob=[NAV[0],NAV[1],NAV[2],NAV[3]];
+  document.getElementById("bottomNav").innerHTML = mob.map(n=>
+    `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
+     <span class="ic">${n.ic}</span>${n.t}</button>`).join("")+
+    `<button onclick="openSheet()"><span class="ic">\u22EF</span>More</button>`;
+}
+function openSheet(){
+  document.getElementById("moreSheet").innerHTML =
+    '<h3 style="margin:4px 0 8px">All sections</h3>'+NAV.map(n=>
+    `<button class="mi" onclick="go('${n.id}');closeSheet()"><span class="ic">${n.ic}</span>${n.t}
+     ${n.phase?`<span class="phase-tag">${n.phase}</span>`:""}</button>`).join("");
+  document.getElementById("sheetVeil").classList.add("open");
+  document.getElementById("moreSheet").classList.add("open");
+}
+function closeSheet(){ document.getElementById("sheetVeil").classList.remove("open");
+  document.getElementById("moreSheet").classList.remove("open"); }
+function go(v){ curView=v; buildNav(); render(); window.scrollTo(0,0); }
+function isDoctor(){ return DB.session && DB.session.role==="doctor"; }
+function needDoctor(){
+  if(isDoctor()) return true;
+  document.getElementById("view").innerHTML =
+    `<div class="card"><div class="placeholder"><div class="big">\uD83D\uDD12</div>
+     <h3>Doctor only</h3><p>Your receptionist role can't open this section.<br>
+     This is a security guardrail — sensitive actions need a doctor's sign-in.</p></div></div>`;
+  return false;
+}
+function placeholderPage(n){
+  const d={consult:["\uD83E\uDE7A","AI Consult","Voice-to-prescription scribe, safety checker, one-tap Rx — the flagship screen."],
+    billing:["\uD83E\uDDFE","Billing","UPI QR, receipts, dues tracking."],
+    whatsapp:["\uD83D\uDCAC","WhatsApp Center","Templates, reminders, report delivery on the clinic's own number."],
+    branches:["\uD83C\uDFE5","Branches","Switch locations, branch-level stats, one shared patient record."],
+    reports:["\uD83D\uDCC8","Reports","Revenue, footfall, follow-ups, medicine analytics."],
+    agents:["\u2728","AI Agents","Scribe, Safety Checker, Follow-up and Queue agents — status and controls."],
+    security:["\uD83D\uDD12","Security & Audit","Full audit log, role permissions, backup & restore."],
+    settings:["\u2699\uFE0F","Settings","Clinic profile, staff, fees, print header."]}[n.id]||["\u2728",n.t,""];
+  return `<div class="pagehead"><h2>${n.t}</h2></div>
+    <div class="card"><div class="placeholder"><div class="big">${d[0]}</div><h3>${d[1]}</h3>
+    <p>${d[2]}</p><span class="phase-tag">${n.phase||""}</span></div></div>`;
+}
+
+/* ---------------- Login ---------------- */
+let loginRole="doctor";
+function pickRole(r){ loginRole=r;
+  document.getElementById("roleDoctor").classList.toggle("sel",r==="doctor");
+  document.getElementById("roleRecep").classList.toggle("sel",r==="receptionist"); }
+function doLogin(){
+  const pin=document.getElementById("loginPin").value.trim();
+  if(!/^\d{4}$/.test(pin)){ toast("Enter any 4-digit demo PIN"); return; }
+  const branchId=document.getElementById("loginBranch").value;
+  DB.session={role:loginRole,branchId,pin:"****",at:nowStr()};
+  audit("Sign in", loginRole+" @ "+branchName(branchId)); save();
+  enterApp();
+}
+function doLogout(){ audit("Sign out",""); DB.session=null; save();
+  document.getElementById("appView").style.display="none";
+  document.getElementById("loginView").style.display="flex";
+  document.getElementById("loginPin").value=""; }
+function branchName(bid){ const b=DB.branches.find(x=>x.id===bid); return b?b.name+" — "+b.area:""; }
+function enterApp(){
+  document.getElementById("loginView").style.display="none";
+  document.getElementById("appView").style.display="block";
+  const s=DB.session;
+  document.getElementById("tbClinic").textContent="ClinicOS";
+  document.getElementById("tbBranch").textContent=branchName(s.branchId);
+  document.getElementById("tbRole").textContent=s.role==="doctor"?"\uD83D\uDC68\u200D\u2695\uFE0F Doctor":"Receptionist";
+  curView="dashboard"; buildNav(); render();
+}
+function switchBranch(){
+  const opts=DB.branches.map(b=>`<option value="${b.id}" ${b.id===DB.session.branchId?"selected":""}>${esc(b.name)} — ${esc(b.area)}</option>`).join("");
+  openModal(`<h3>Switch branch</h3><div class="field"><label>Branch</label>
+    <select id="swB">${opts}</select></div>
+    <div class="btnrow"><button class="btn" onclick="doSwitchBranch()">Switch</button>
+    <button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+function doSwitchBranch(){ const b=document.getElementById("swB").value;
+  DB.session.branchId=b; audit("Switch branch", branchName(b)); save(); closeModal();
+  document.getElementById("tbBranch").textContent=branchName(b); render(); toast("Switched branch"); }
+
+/* ---------------- Render dispatcher ---------------- */
+function render(){
+  const v=document.getElementById("view");
+  const n=NAV.find(x=>x.id===curView);
+  if(n.phase){ v.innerHTML=placeholderPage(n); return; }
+  ({dashboard:vDashboard, queue:vQueue, patients:vPatients}[curView]||vDashboard)(v);
+}
+
+/* ---------------- Dashboard ---------------- */
+function vDashboard(v){
+  const bid=DB.session.branchId, toks=branchTokens(bid);
+  const waiting=toks.filter(t=>t.status==="waiting"), done=toks.filter(t=>t.status==="done");
+  const rev=DB.bills.filter(b=>b.branchId===bid&&b.paid).reduce((s,b)=>s+b.items.reduce((a,i)=>a+i[1],0),0);
+  const due=DB.patients.filter(p=>p.followUp && p.followUp<="2026-10-03");
+  const qp=toks.filter(t=>t.status!=="done").slice(0,5).map(t=>{const p=patientById(t.patientId);return `
+    <div class="token"><div class="num">${t.num}</div>
+      <div class="who"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(p.village)} · ${t.type}</div></div>
+      <span class="pill ${t.status}">${t.status.replace("-"," ")}</span></div>`;}).join("");
+  const feed=[
+    ["\u2728","Scribe Agent","Online — ready for dictation"],
+    ["\uD83D\uDEE1\uFE0F","Safety Checker","Reviewed "+done.length+" prescriptions today · 0 critical flags"],
+    ["\uD83D\uDCAC","Follow-up Agent","Queued "+due.length+" reminders for due patients"],
+    ["\u23F1\uFE0F","Queue Optimizer","Avg wait now ~"+(waiting.length*AVG_CONSULT_MIN)+" min"]
+  ].map(a=>`<div class="agentrow"><span class="dot"></span>
+    <div><b>${a[1]}</b><div class="sub" style="font-size:12px;color:var(--muted)">${a[2]}</div></div></div>`).join("");
+  v.innerHTML=`
+  <div class="pagehead"><h2>Good morning, Doctor</h2><span class="pill waiting">${todayStr()}</span></div>
+  <div class="stats">
+    <div class="stat"><div class="v">${toks.length}</div><div class="l">Tokens today</div></div>
+    <div class="stat"><div class="v">${waiting.length}</div><div class="l">In queue</div></div>
+    <div class="stat"><div class="v">${done.length}</div><div class="l">Patients seen</div></div>
+    <div class="stat"><div class="v">${inr(rev)}</div><div class="l">Revenue today</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Live queue</h3>${qp||'<p style="color:var(--muted)">Queue is clear.</p>'}
+      <button class="btn ghost" onclick="go('queue')">Open queue</button></div>
+    <div class="card"><h3>AI agents at work</h3>${feed}</div>
+  </div>
+  <div class="card"><h3>Follow-ups due</h3>
+    ${due.length?due.map(p=>`<div class="prow" onclick="openPatient('${p.id}')">
+      <div class="avatar">${esc(p.name[0])}</div>
+      <div class="who"><div class="nm">${esc(p.name)}</div>
+      <div class="sub">Due ${esc(p.followUp)} · ${esc(p.chronic.join(", ")||"—")}</div></div>
+      <button class="btn sm secondary" onclick="event.stopPropagation();toast('Demo: WhatsApp reminder queued')">Remind</button></div>`).join("")
+    :'<p style="color:var(--muted)">No follow-ups due.</p>'}</div>`;
+}
+
+/* ---------------- Queue ---------------- */
+function vQueue(v){
+  const bid=DB.session.branchId, toks=branchTokens(bid);
+  const eta=i=>Math.max(0,(i)*AVG_CONSULT_MIN);
+  let wi=0;
+  const rows=toks.map(t=>{const p=patientById(t.patientId);
+    const w=t.status==="waiting"?`<span class="sub"> · ~${eta(wi++)} min wait</span>`:"";
+    return `<div class="token"><div class="num">${t.num}</div>
+    <div class="who"><div class="nm">${esc(p.name)} <span class="sub">${p.age}${p.sex}</span></div>
+      <div class="sub">${esc(p.village)} · ${t.type}${w}</div></div>
+    <span class="pill ${t.status}">${t.status.replace("-"," ")}</span>
+    <div class="btnrow">
+      ${t.status==="waiting"?`<button class="btn sm" onclick="callNext('${t.id}')">Call</button>`:""}
+      ${t.status==="in-consultation"?`<button class="btn sm secondary" onclick="toast('Consult arrives in Phase 2')">Consult</button>`:""}
+      ${t.status!=="done"?`<button class="btn sm ghost" onclick="doneToken('${t.id}')">Done</button>`:""}
+    </div></div>`;}).join("");
+  v.innerHTML=`<div class="pagehead"><h2>Token queue</h2>
+    <button class="btn sm" onclick="addToken()">+ Walk-in token</button></div>
+    ${rows||'<div class="card"><p style="color:var(--muted)">No tokens yet today.</p></div>'}
+    <div class="notice">Queue Optimizer estimates ~${AVG_CONSULT_MIN} min per consultation and updates ETAs live.</div>`;
+}
+function addToken(){
+  const opts=DB.patients.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.age}${p.sex}, ${esc(p.village)}</option>`).join("");
+  openModal(`<h3>New walk-in token</h3>
+    <div class="field"><label>Patient</label><select id="ntP">${opts}</select></div>
+    <div class="btnrow"><button class="btn" onclick="doAddToken()">Issue token</button>
+    <button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+function doAddToken(){
+  const bid=DB.session.branchId, pid=document.getElementById("ntP").value;
+  const num=DB.tokenSeq[bid]++;
+  const t={id:"t"+Date.now(),num,patientId:pid,branchId:bid,status:"waiting",type:"walk-in",arrived:0};
+  DB.tokens.push(t); audit("Token issued","#"+num+" "+patientById(pid).name); save(); closeModal(); render();
+  toast("Token #"+num+" issued — WhatsApp confirmation queued (demo)");
+}
+function callNext(id){ const t=DB.tokens.find(x=>x.id===id); if(!t) return;
+  DB.tokens.forEach(x=>{ if(x.branchId===t.branchId&&x.status==="in-consultation") x.status="waiting"; });
+  t.status="in-consultation"; audit("Token called","#"+t.num); save(); render();
+  toast("Token #"+t.num+" called — patient notified on WhatsApp (demo)"); }
+function doneToken(id){ const t=DB.tokens.find(x=>x.id===id); if(!t) return;
+  t.status="done"; audit("Token completed","#"+t.num); save(); render(); }
+
+/* ---------------- Patients ---------------- */
+let patQuery="";
+function vPatients(v){
+  const q=patQuery.toLowerCase();
+  const list=DB.patients.filter(p=>!q||p.name.toLowerCase().includes(q)||p.village.toLowerCase().includes(q)||p.phone.includes(q));
+  v.innerHTML=`<div class="pagehead"><h2>Patients</h2>
+    <button class="btn sm" onclick="regPatient()">+ Register</button></div>
+  <div class="card"><div class="field" style="margin:0">
+    <input id="patSearch" placeholder="Search name, village, phone…" value="${esc(patQuery)}"
+      oninput="patQuery=this.value;vPatientsRefresh()"></div></div>
+  <div class="card" id="patList">${list.map(p=>`
+    <div class="prow" onclick="openPatient('${p.id}')">
+      <div class="avatar">${esc(p.name[0])}</div>
+      <div class="who"><div class="nm">${esc(p.name)} <span class="sub">${p.age}${p.sex}</span></div>
+        <div class="sub">${esc(p.village)} · ${esc(p.phone)}</div></div>
+      ${p.allergies?`<span class="tag">Allergy</span>`:""}
+      ${(p.chronic||[]).map(c=>`<span class="tag chronic">${esc(c)}</span>`).join("")}
+    </div>`).join("")||'<p style="color:var(--muted)">No patients found.</p>'}</div>
+  <div class="card"><h3>Data controls</h3><div class="btnrow">
+    <button class="btn sm ghost" onclick="exportData()">Export backup</button>
+    <button class="btn sm ghost" onclick="document.getElementById('impFile').click()">Import</button>
+    <input type="file" id="impFile" accept="application/json" style="display:none" onchange="importData(event)">
+    <button class="btn sm danger" onclick="resetData()">Reset demo</button></div>
+    <p style="font-size:12px;color:var(--muted)">Backups stay on this device. Patient consent is captured at registration (DPDP-ready).</p></div>`;
+  const s=document.getElementById("patSearch"); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); }
+}
+function vPatientsRefresh(){
+  const q=patQuery.toLowerCase();
+  const list=DB.patients.filter(p=>!q||p.name.toLowerCase().includes(q)||p.village.toLowerCase().includes(q)||p.phone.includes(q));
+  document.getElementById("patList").innerHTML=list.map(p=>`
+    <div class="prow" onclick="openPatient('${p.id}')">
+      <div class="avatar">${esc(p.name[0])}</div>
+      <div class="who"><div class="nm">${esc(p.name)} <span class="sub">${p.age}${p.sex}</span></div>
+        <div class="sub">${esc(p.village)} · ${esc(p.phone)}</div></div>
+      ${p.allergies?`<span class="tag">Allergy</span>`:""}
+      ${(p.chronic||[]).map(c=>`<span class="tag chronic">${esc(c)}</span>`).join("")}
+    </div>`).join("")||'<p style="color:var(--muted)">No patients found.</p>';
+}
+function regPatient(){
+  openModal(`<h3>Register patient</h3>
+    <div class="grid2" style="gap:10px">
+    <div class="field"><label>Full name *</label><input id="rpName"></div>
+    <div class="field"><label>Age *</label><input id="rpAge" type="number" min="0" max="120"></div>
+    <div class="field"><label>Sex</label><select id="rpSex"><option>M</option><option>F</option><option>Other</option></select></div>
+    <div class="field"><label>Phone *</label><input id="rpPhone" inputmode="numeric" maxlength="10" placeholder="10-digit mobile"></div>
+    <div class="field"><label>Village / Town</label><input id="rpVillage"></div>
+    <div class="field"><label>Allergies</label><input id="rpAlg" placeholder="e.g. Penicillin"></div>
+    </div>
+    <div class="field"><label>Chronic conditions (comma separated)</label><input id="rpChr" placeholder="e.g. Diabetes, Hypertension"></div>
+    <div class="consent-box"><label><input type="checkbox" id="rpConsent" style="margin-top:3px">
+      <span>Patient (or guardian) consents to digital health records &amp; WhatsApp updates. Consent can be withdrawn anytime at the clinic.</span></label></div>
+    <div class="btnrow"><button class="btn" onclick="doRegPatient()">Register</button>
+    <button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+function doRegPatient(){
+  const name=document.getElementById("rpName").value.trim(),
+        age=parseInt(document.getElementById("rpAge").value,10),
+        phone=document.getElementById("rpPhone").value.trim();
+  if(!name||!(age>=0)||!/^\d{10}$/.test(phone)){ toast("Name, valid age and 10-digit phone are required"); return; }
+  if(!document.getElementById("rpConsent").checked){ toast("Consent is required to create a record"); return; }
+  const p={id:"p"+Date.now(),name,age,sex:document.getElementById("rpSex").value,phone,
+    village:document.getElementById("rpVillage").value.trim()||"—",
+    branchId:DB.session.branchId, allergies:document.getElementById("rpAlg").value.trim(),
+    chronic:document.getElementById("rpChr").value.split(",").map(s=>s.trim()).filter(Boolean),
+    consentTs:nowStr(), followUp:""};
+  DB.patients.push(p); audit("Patient registered",name); save(); closeModal(); render();
+  toast(name+" registered with consent");
+}
+function openPatient(id){
+  const p=patientById(id); if(!p) return;
+  const vs=DB.visits.filter(x=>x.patientId===id).slice().reverse();
+  const shared=p.branchId!==DB.session.branchId;
+  openModal(`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <div class="avatar" style="width:52px;height:52px;font-size:20px">${esc(p.name[0])}</div>
+      <div><h3 style="margin:0">${esc(p.name)}</h3>
+      <div class="sub" style="color:var(--muted);font-size:13px">${p.age}${p.sex} · ${esc(p.village)} · ${esc(p.phone)}</div></div>
+    </div>
+    ${shared?'<div class="notice">Shared record — registered at another branch. One patient, one history.</div>':""}
+    <div style="margin:8px 0">${p.allergies?`<span class="tag">⚠ Allergy: ${esc(p.allergies)}</span>`:""}
+    ${(p.chronic||[]).map(c=>`<span class="tag chronic">${esc(c)}</span>`).join("")}</div>
+    ${p.followUp?`<div class="warn amber">Follow-up due: ${esc(p.followUp)}</div>`:""}
+    <h3>Visit history</h3>
+    <div class="timeline">${vs.length?vs.map(x=>`
+      <div class="tl-item"><div class="dt">${esc(x.date)} · ${esc(branchName(x.branchId))}</div>
+      <b>${esc(x.diagnosis)}</b><div style="font-size:13px;color:var(--muted)">${esc(x.complaint)}</div>
+      <div style="font-size:13px">Rx: ${esc(x.rx)}</div></div>`).join("")
+      :'<p style="color:var(--muted);font-size:13px">No visits yet.</p>'}</div>
+    <div class="consent-box">Consent recorded: ${esc(p.consentTs)} · withdrawable at clinic.</div>
+    <div class="btnrow"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
+}
+
+/* ---------------- Data controls ---------------- */
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,1)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="clinicos-backup-"+todayStr()+".json"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast("Backup downloaded");
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.patients||!d.branches) throw 0;
+      DB=d; audit("Data imported","backup file"); save(); render(); toast("Backup restored");
+    }catch(e){ toast("Invalid backup file"); } };
+  r.readAsText(f); ev.target.value="";
+}
+function resetData(){ if(!confirm("Reset all demo data?")) return;
+  const s=DB.session; DB=seedData(); DB.session=s; audit("Demo data reset",""); save(); render(); toast("Demo data reset"); }
+
+/* ---------------- Init ---------------- */
+load();
+document.getElementById("loginBranch").innerHTML=
+  DB.branches.map(b=>`<option value="${b.id}">${esc(b.name)} — ${esc(b.area)}</option>`).join("");
+</script>
+</body>
+</html>
