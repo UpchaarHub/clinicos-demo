@@ -139,6 +139,18 @@ table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;
 .placeholder .big{font-size:44px;margin-bottom:8px;}
 .placeholder h3{color:var(--ink);}
 
+/* ---------- Phase 3/4 additions ---------- */
+.wa-phone{width:300px;max-width:100%;background:#0b141a;border-radius:26px;padding:12px;box-shadow:var(--shadow);margin:0 auto;}
+.wa-screen{background:#e5ddd2;border-radius:16px;padding:14px 10px;min-height:300px;display:flex;flex-direction:column;gap:8px;}
+.wa-bub{max-width:88%;padding:8px 12px;border-radius:12px;font-size:13.5px;line-height:1.45;
+  background:#fff;align-self:flex-start;box-shadow:0 1px 1px rgba(0,0,0,.15);}
+.wa-bub.out{background:#d9fdd3;align-self:flex-end;}
+.wa-meta{text-align:right;font-size:10.5px;color:#667781;margin-top:5px;}
+.tgl{width:48px;height:27px;border-radius:14px;background:#b9c4c2;border:none;position:relative;cursor:pointer;flex-shrink:0;}
+.tgl.on{background:var(--teal);}
+.tgl:after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:left .15s;}
+.tgl.on:after{left:24px;}
+
 /* ---------- Bottom nav (mobile) ---------- */
 .bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
   z-index:40;padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
@@ -360,8 +372,8 @@ function seedData(){
 let DB=null;
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }catch(e){} }
 function load(){
-  try{ const raw=localStorage.getItem(DB_KEY); if(raw){ DB=JSON.parse(raw); return; } }catch(e){}
-  DB=seedData(); save();
+  try{ const raw=localStorage.getItem(DB_KEY); if(raw){ DB=JSON.parse(raw); ensureSettings(); return; } }catch(e){}
+  DB=seedData(); ensureSettings(); save();
 }
 function audit(action, entity){
   DB.auditLog.unshift({ts:nowStr(), user:DB.session?DB.session.role:"system",
@@ -390,12 +402,12 @@ const NAV=[
   {id:"patients",t:"Patients",ic:"\uD83D\uDC65"},
   {id:"consult",t:"Consult",ic:"\uD83E\uDE7A"},
   {id:"billing",t:"Billing",ic:"\uD83E\uDDFE"},
-  {id:"whatsapp",t:"WhatsApp",ic:"\uD83D\uDCAC",phase:"Phase 3"},
-  {id:"branches",t:"Branches",ic:"\uD83C\uDFE5",phase:"Phase 3"},
-  {id:"reports",t:"Reports",ic:"\uD83D\uDCC8",phase:"Phase 3"},
-  {id:"agents",t:"AI Agents",ic:"\u2728",phase:"Phase 4"},
-  {id:"security",t:"Security & Audit",ic:"\uD83D\uDD12",phase:"Phase 4"},
-  {id:"settings",t:"Settings",ic:"\u2699\uFE0F",phase:"Phase 4"}
+  {id:"whatsapp",t:"WhatsApp",ic:"\uD83D\uDCAC"},
+  {id:"branches",t:"Branches",ic:"\uD83C\uDFE5"},
+  {id:"reports",t:"Reports",ic:"\uD83D\uDCC8"},
+  {id:"agents",t:"AI Agents",ic:"\u2728"},
+  {id:"security",t:"Security & Audit",ic:"\uD83D\uDD12"},
+  {id:"settings",t:"Settings",ic:"\u2699\uFE0F"}
 ];
 let curView="dashboard";
 function buildNav(){
@@ -484,9 +496,9 @@ function doSwitchBranch(){ const b=document.getElementById("swB").value;
 /* ---------------- Render dispatcher ---------------- */
 function render(){
   const v=document.getElementById("view");
-  const n=NAV.find(x=>x.id===curView);
-  if(n.phase){ v.innerHTML=placeholderPage(n); return; }
-  ({dashboard:vDashboard, queue:vQueue, patients:vPatients, consult:vConsult, billing:vBilling}[curView]||vDashboard)(v);
+  ({dashboard:vDashboard, queue:vQueue, patients:vPatients, consult:vConsult, billing:vBilling,
+    whatsapp:vWhatsApp, branches:vBranches, reports:vReports,
+    agents:vAgents, security:vSecurity, settings:vSettings}[curView]||vDashboard)(v);
 }
 
 /* ---------------- Dashboard ---------------- */
@@ -524,7 +536,7 @@ function vDashboard(v){
       <div class="avatar">${esc(p.name[0])}</div>
       <div class="who"><div class="nm">${esc(p.name)}</div>
       <div class="sub">Due ${esc(p.followUp)} · ${esc(p.chronic.join(", ")||"—")}</div></div>
-      <button class="btn sm secondary" onclick="event.stopPropagation();toast('Demo: WhatsApp reminder queued')">Remind</button></div>`).join("")
+      <button class="btn sm secondary" onclick="event.stopPropagation();waQuickRemind('${p.id}')">Remind</button></div>`).join("")
     :'<p style="color:var(--muted)">No follow-ups due.</p>'}</div>`;
 }
 
@@ -560,12 +572,14 @@ function doAddToken(){
   const bid=DB.session.branchId, pid=document.getElementById("ntP").value;
   const num=DB.tokenSeq[bid]++;
   const t={id:"t"+Date.now(),num,patientId:pid,branchId:bid,status:"waiting",type:"walk-in",arrived:0};
-  DB.tokens.push(t); audit("Token issued","#"+num+" "+patientById(pid).name); save(); closeModal(); render();
+  DB.tokens.push(t); audit("Token issued","#"+num+" "+patientById(pid).name);
+  feed("queue","Token #"+num+" issued for "+patientById(pid).name+" — ETAs refreshed"); save(); closeModal(); render();
   toast("Token #"+num+" issued — WhatsApp confirmation queued (demo)");
 }
 function callNext(id){ const t=DB.tokens.find(x=>x.id===id); if(!t) return;
   DB.tokens.forEach(x=>{ if(x.branchId===t.branchId&&x.status==="in-consultation") x.status="waiting"; });
-  t.status="in-consultation"; audit("Token called","#"+t.num); save(); render();
+  t.status="in-consultation"; audit("Token called","#"+t.num);
+  feed("queue","Token #"+t.num+" called — patient notified (demo)"); save(); render();
   toast("Token #"+t.num+" called — patient notified on WhatsApp (demo)"); }
 function doneToken(id){ const t=DB.tokens.find(x=>x.id===id); if(!t) return;
   t.status="done"; audit("Token completed","#"+t.num); save(); render(); }
@@ -673,12 +687,12 @@ function importData(ev){
   const f=ev.target.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.patients||!d.branches) throw 0;
-      DB=d; audit("Data imported","backup file"); save(); render(); toast("Backup restored");
+      DB=d; ensureSettings(); audit("Data imported","backup file"); save(); render(); toast("Backup restored");
     }catch(e){ toast("Invalid backup file"); } };
   r.readAsText(f); ev.target.value="";
 }
 function resetData(){ if(!confirm("Reset all demo data?")) return;
-  const s=DB.session; DB=seedData(); DB.session=s; audit("Demo data reset",""); save(); render(); toast("Demo data reset"); }
+  const s=DB.session; DB=seedData(); DB.session=s; ensureSettings(); audit("Demo data reset",""); save(); render(); toast("Demo data reset"); }
 
 
 /* ---------------- Consult (Phase 2) ---------------- */
@@ -777,7 +791,7 @@ function runScribe(){
   DB.drugs.forEach(d=>{ const key=d.name.split(" ")[0].toLowerCase();
     if(tl.indexOf(" "+key+" ")>-1||tl.indexOf(" "+key+",")>-1||tl.indexOf(" "+key+".")>-1)
       CX.rows.push({name:d.name,freq:d.dose,days}); });
-  CX.scribed=true; render(); toast("Scribe drafted the prescription — review before saving");
+  CX.scribed=true; feed("scribe","Scribe drafted prescription from visit notes — awaiting doctor review"); render(); toast("Scribe drafted the prescription — review before saving");
 }
 function scribeFormHTML(){
   const rows=CX.rows.map((r,i)=>`
@@ -870,6 +884,9 @@ function saveConsult(){
     text:tpl.replace("{name}",p.name).replace("{medicines}",CX.rows.map(r=>r.name).join(", ")||"—").replace("{followup}",CX.followUp)});
   t.status="done";
   audit("Consult completed",p.name+" · "+CX.rows.length+" meds");
+  feed("scribe","Consult completed for "+p.name+" — "+CX.rows.length+" medicines drafted");
+  feed("followup","Follow-up set for "+p.name+" on "+CX.followUp);
+  feed("reminder","Prescription-ready WhatsApp queued for "+p.name+" (demo)");
   audit("Bill drafted",bill.no); save();
   const no=bill.no; CX=null; go("queue");
   toast("Visit saved · bill "+no+" drafted · WhatsApp queued (demo)");
@@ -947,6 +964,304 @@ function openReceipt(id){
       <button class="btn ghost" onclick="render()">Back</button></div></div>`;
   window.scrollTo(0,0);
 }
+
+/* ================================================================
+   Phase 3 + Phase 4 views — all simulated, everything stays on device
+   ================================================================ */
+function ensureSettings(){
+  DB.settings=DB.settings||{};
+  const s=DB.settings;
+  if(!s.doctorName) s.doctorName="Dr. Sharma";
+  if(s.printHeader==null) s.printHeader="";
+  if(!s.waLang) s.waLang="hi";
+  s.notif=Object.assign({tokenConfirm:true,followupRemind:true,dailySummary:false},s.notif);
+  s.agents=Object.assign({queue:true,scribe:true,followup:true,reminder:true},s.agents);
+  if(!DB.agentFeed) DB.agentFeed={
+    queue:[{ts:nowStr(),text:"Queue Optimizer online — ETAs live for today's tokens"}],
+    scribe:[{ts:nowStr(),text:"Scribe ready — awaiting first dictation"}],
+    followup:[{ts:nowStr(),text:"Follow-up Agent scanned records — reminders queued for due patients"}],
+    reminder:[{ts:nowStr(),text:"Reminder Agent online — WhatsApp channel (simulated)"}]
+  };
+}
+function feed(id,text){
+  DB.agentFeed=DB.agentFeed||{}; DB.agentFeed[id]=DB.agentFeed[id]||[];
+  DB.agentFeed[id].unshift({ts:nowStr(),text});
+  if(DB.agentFeed[id].length>40) DB.agentFeed[id].length=40;
+}
+function dkey(ds){ const a=String(ds||"").split("-"); return a.length===3?a[2]+a[1]+a[0]:""; }
+
+/* ---------------- WhatsApp Center (Phase 3) ---------------- */
+const WAHI={
+ w1:"\u0928\u092E\u0938\u094D\u0924\u0947 {name}, {clinic} \u092E\u0947\u0902 \u0906\u092A\u0915\u093E \u091F\u094B\u0915\u0928 #{token} \u0915\u0928\u094D\u092B\u0930\u094D\u092E \u0939\u094B \u0917\u092F\u093E \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E 15 \u092E\u093F\u0928\u091F \u092A\u0939\u0932\u0947 \u092A\u0939\u0941\u091A\u0947\u0902\u0964",
+ w2:"{name}, {clinic} \u092E\u0947\u0902 \u0906\u092A\u0915\u0940 \u092C\u093E\u0930\u0940 \u0932\u0917\u092D\u0917 {eta} \u092E\u093F\u0928\u091F \u092E\u0947\u0902 \u0906\u090F\u0917\u0940\u0964 \u091F\u094B\u0915\u0928 #{token}\u0964",
+ w3:"{name}, \u0906\u091C \u0915\u0940 \u0926\u0935\u093E\u0907\u092F\u093E\u0901 \u0924\u0948\u092F\u093E\u0930 \u0939\u0948\u0902: {medicines}\u0964 \u0905\u0917\u0932\u0940 \u091C\u093E\u0901\u091A: {followup}\u0964",
+ w4:"{name}, \u0906\u092A\u0915\u0940 \u0932\u0948\u092C \u0930\u093F\u092A\u094B\u0930\u094D\u091F \u0924\u0948\u092F\u093E\u0930 \u0939\u0948\u0964 \u0915\u0943\u092A\u092F\u093E {clinic} \u0938\u0947 \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0915\u0930\u0947\u0902\u0964",
+ w5:"\u0928\u092E\u0938\u094D\u0924\u0947 {name}, {followup} \u0915\u094B {clinic} \u092E\u0947\u0902 \u0906\u092A\u0915\u0940 \u0905\u0917\u0932\u0940 \u091C\u093E\u0901\u091A \u0915\u093E \u0930\u093F\u092E\u093E\u0907\u0902\u0921\u0930\u0964",
+ w6:"{name}, {clinic} \u092E\u0947\u0902 \u20B9{amount} \u0915\u093E \u092D\u0941\u0917\u0924\u093E\u0928 \u092A\u094D\u0930\u093E\u092A\u094D\u0924 \u0939\u0941\u0906\u0964 \u0930\u0938\u0940\u0926 \u0928\u0902. {billno}\u0964 \u0927\u0928\u094D\u092F\u0935\u093E\u0926!"
+};
+let WA={tpl:"w1",pat:"",lang:""};
+function waLang(){ return WA.lang||(DB.settings&&DB.settings.waLang)||"en"; }
+function waText(id){ const t=DB.templates.find(x=>x.id===id); const h=WAHI[id];
+  return (waLang()==="hi"&&h)?h:(t?t.text:""); }
+function waFill(id,p,extra){
+  let t=waText(id); extra=extra||{};
+  const br=DB.branches.find(b=>b.id===p.branchId);
+  const m={name:p.name,token:extra.token||"\u2014",clinic:br?br.name:"ClinicOS",
+    eta:extra.eta||"\u2014",medicines:extra.medicines||"\u2014",followup:p.followUp||"\u2014",
+    amount:extra.amount||"\u2014",billno:extra.billno||"\u2014"};
+  Object.keys(m).forEach(k=>{ t=t.split("{"+k+"}").join(m[k]); });
+  return t;
+}
+function vWhatsApp(v){
+  const tpl=DB.templates.find(t=>t.id===WA.tpl)||DB.templates[0]; WA.tpl=tpl.id;
+  const p=patientById(WA.pat)||null;
+  const preview=p?waFill(tpl.id,p):null;
+  const due=DB.patients.filter(x=>x.followUp).sort((a,b)=>dkey(a.followUp)<dkey(b.followUp)?-1:1);
+  const log=DB.messages.slice().reverse().slice(0,30);
+  v.innerHTML=`
+  <div class="pagehead"><h2>WhatsApp Center</h2><span class="pill in-consultation">Demo simulation</span></div>
+  <div class="notice">All sends are <b>simulated</b> — nothing leaves this browser. Every send is written to the audit log.</div>
+  <div class="grid2">
+   <div class="card"><h3>Compose</h3>
+    <div class="field"><label>Template</label><select id="waTpl" onchange="WA.tpl=this.value;render()">
+      ${DB.templates.map(t=>`<option value="${t.id}" ${t.id===WA.tpl?"selected":""}>${esc(t.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Language</label><div class="btnrow">
+      <button class="btn sm ${waLang()==="hi"?"":"ghost"}" onclick="WA.lang='hi';render()">\u0939\u093F\u0902\u0926\u0940</button>
+      <button class="btn sm ${waLang()==="en"?"":"ghost"}" onclick="WA.lang='en';render()">English</button>
+      <button class="btn sm ${WA.lang?"ghost":"secondary"}" onclick="WA.lang='';render()">Auto (${(DB.settings.waLang==="hi"?"\u0939\u093F\u0902\u0926\u0940":"English")})</button></div></div>
+    <div class="field"><label>Patient</label><select id="waPat" onchange="WA.pat=this.value;render()">
+      <option value="">\u2014 choose patient \u2014</option>
+      ${DB.patients.map(x=>`<option value="${x.id}" ${x.id===WA.pat?"selected":""}>${esc(x.name)} \u00B7 ${esc(x.village)}</option>`).join("")}</select></div>
+    ${p?`<div class="btnrow"><button class="btn" onclick="waSend()">Send on WhatsApp (demo)</button></div>`
+       :`<p style="color:var(--muted);font-size:13px">Pick a patient to preview the message.</p>`}
+   </div>
+   <div class="card"><h3>Phone preview</h3>
+    <div class="wa-phone"><div class="wa-screen">
+      <div style="text-align:center;font-size:11px;color:#667781">\uD83D\uDD12 Messages are simulated in this demo</div>
+      ${preview?`<div class="wa-bub out">${esc(preview)}<div class="wa-meta">${esc(nowStr().slice(11))} <span style="color:#53bdeb">\u2713\u2713</span></div></div>`
+        :`<div class="wa-bub">\uD83D\uDC4B Message preview appears here\u2026</div>`}
+    </div></div></div>
+  </div>
+  <div class="card"><h3>Reminder queue \u2014 follow-ups due</h3>
+   ${due.map(x=>`<div class="prow" style="cursor:default"><div class="avatar">${esc(x.name[0])}</div>
+     <div class="who"><div class="nm">${esc(x.name)}</div>
+     <div class="sub">Due ${esc(x.followUp)} \u00B7 ${esc(x.village)} \u00B7 ${esc(x.phone)}</div></div>
+     <button class="btn sm secondary" onclick="waQuickRemind('${x.id}')">Send reminder</button></div>`).join("")
+     ||'<p style="color:var(--muted)">No follow-ups scheduled.</p>'}
+  </div>
+  <div class="card"><h3>Delivery log</h3>
+   ${log.length?`<table class="log"><tr><th>Time</th><th>To</th><th>Status</th><th>Message</th></tr>${log.map(m=>{const pp=patientById(m.to);return `<tr><td style="white-space:nowrap">${esc(m.ts)}</td><td>${esc(pp?pp.name:m.to)}</td><td>${esc(m.status)}</td><td>${esc(m.text).slice(0,90)}${m.text.length>90?"\u2026":""}</td></tr>`;}).join("")}</table>`
+   :'<p style="color:var(--muted)">No messages yet.</p>'}
+  </div>`;
+}
+function waSend(){
+  const p=patientById(WA.pat); if(!p){ toast("Choose a patient first"); return; }
+  const tpl=DB.templates.find(t=>t.id===WA.tpl);
+  const t=DB.tokens.filter(x=>x.patientId===p.id&&x.branchId===p.branchId&&x.status!=="done").slice(-1)[0];
+  const text=waFill(tpl.id,p,{token:t?t.num:"\u2014",eta:t?"~10":"\u2014"});
+  DB.messages.push({id:"m"+Date.now(),to:p.id,ts:nowStr(),status:"delivered \u2713\u2713 (demo)",text});
+  audit("WhatsApp sent (demo)",tpl.name+" \u2192 "+p.name);
+  feed("reminder","Sent \u201C"+tpl.name+"\u201D to "+p.name+" (simulated)");
+  save(); render(); toast("WhatsApp message sent (demo simulation)");
+}
+function waQuickRemind(pid){ WA.pat=pid; WA.tpl="w5"; waSend(); }
+
+/* ---------------- Branches (Phase 3) ---------------- */
+function branchStats(bid){
+  const toks=branchTokens(bid);
+  return {tokens:toks.length,
+    waiting:toks.filter(t=>t.status==="waiting").length,
+    done:toks.filter(t=>t.status==="done").length,
+    rev:DB.bills.filter(b=>b.branchId===bid&&b.paid).reduce((s,b)=>s+b.items.reduce((a,i)=>a+i[1],0),0),
+    patients:DB.patients.filter(p=>p.branchId===bid).length};
+}
+function vBranches(v){
+  const cur=DB.session.branchId;
+  const rows=DB.branches.map(b=>({b,s:branchStats(b.id)}));
+  v.innerHTML=`<div class="pagehead"><h2>Branches</h2>
+    <span class="pill done">${DB.branches.length} locations \u00B7 one shared patient record</span></div>
+  <div class="grid2">${rows.map(r=>`
+   <div class="card"><h3>${esc(r.b.name)}</h3>
+    <div style="color:var(--muted);font-size:13px;margin:-4px 0 10px">${esc(r.b.area)} \u00B7 ${esc(r.b.phone)}</div>
+    <div class="stats" style="grid-template-columns:repeat(2,1fr)">
+      <div class="stat"><div class="v">${r.s.tokens}</div><div class="l">Tokens today</div></div>
+      <div class="stat"><div class="v">${r.s.waiting}</div><div class="l">Waiting</div></div>
+      <div class="stat"><div class="v">${r.s.done}</div><div class="l">Seen</div></div>
+      <div class="stat"><div class="v">${inr(r.s.rev)}</div><div class="l">Revenue</div></div>
+    </div>
+    ${r.b.id===cur?'<span class="pill done">Current branch</span>'
+      :`<button class="btn secondary" onclick="branchOpen('${r.b.id}')">Open this branch</button>`}
+   </div>`).join("")}</div>
+  <div class="card"><h3>Comparison</h3>
+   <table class="log"><tr><th>Branch</th><th>Tokens</th><th>Waiting</th><th>Seen</th><th>Patients</th><th>Revenue</th></tr>
+   ${rows.map(r=>`<tr><td><b>${esc(r.b.name)}</b><br><span style="color:var(--muted);font-size:12px">${esc(r.b.area)}</span></td>
+     <td>${r.s.tokens}</td><td>${r.s.waiting}</td><td>${r.s.done}</td><td>${r.s.patients}</td><td>${inr(r.s.rev)}</td></tr>`).join("")}
+   </table></div>`;
+}
+function branchOpen(bid){ DB.session.branchId=bid; audit("Branch opened",branchName(bid)); save();
+  document.getElementById("tbBranch").textContent=branchName(bid); render(); toast("Now viewing "+branchName(bid)); }
+
+/* ---------------- Reports (Phase 3) ---------------- */
+let REP_RANGE="today";
+function repDates(){ if(REP_RANGE==="today") return [todayStr()];
+  const out=[]; for(let i=6;i>=0;i--) out.push(addDays(todayStr(),-i)); return out; }
+function vReports(v){
+  const days=repDates(), tk=dkey(todayStr());
+  const inR=d=>days.indexOf(d)>-1;
+  const bills=DB.bills.filter(b=>inR(b.date));
+  const visits=DB.visits.filter(x=>inR(x.date));
+  const paid=bills.filter(b=>b.paid);
+  const rev=paid.reduce((s,b)=>s+b.items.reduce((a,i)=>a+i[1],0),0);
+  const foot=visits.length+(REP_RANGE==="today"?branchTokens(DB.session.branchId).length:0);
+  const dx={}; visits.forEach(x=>{dx[x.diagnosis]=(dx[x.diagnosis]||0)+1;});
+  const topDx=Object.keys(dx).sort((a,b)=>dx[b]-dx[a]).slice(0,5);
+  const dueF=visits.filter(x=>x.followUp&&dkey(x.followUp)<=tk);
+  const kept=dueF.filter(x=>DB.visits.some(y=>y.patientId===x.patientId&&y.id!==x.id&&dkey(y.date)>=dkey(x.followUp)));
+  const comp=dueF.length?Math.round(kept.length/dueF.length*100):0;
+  const meds=visits.reduce((s,x)=>s+(x.rx&&x.rx!=="\u2014"?x.rx.split(";").length:0),0);
+  v.innerHTML=`<div class="pagehead"><h2>Reports</h2>
+    <div class="btnrow">
+      <button class="btn sm ${REP_RANGE==="today"?"":"ghost"}" onclick="REP_RANGE='today';render()">Today</button>
+      <button class="btn sm ${REP_RANGE==="7d"?"":"ghost"}" onclick="REP_RANGE='7d';render()">Last 7 days</button></div></div>
+  <div class="stats">
+    <div class="stat"><div class="v">${inr(rev)}</div><div class="l">Revenue (${paid.length} paid bills)</div></div>
+    <div class="stat"><div class="v">${foot}</div><div class="l">Footfall (visits${REP_RANGE==="today"?" + tokens":""})</div></div>
+    <div class="stat"><div class="v">${comp}%</div><div class="l">Follow-up compliance</div></div>
+    <div class="stat"><div class="v">${meds}</div><div class="l">Medicines dispensed</div></div>
+  </div>
+  <div class="card"><h3>Revenue</h3><canvas id="revChart" width="640" height="280" style="width:100%;height:auto"></canvas></div>
+  <div class="grid2">
+   <div class="card"><h3>Top diagnoses</h3>
+    ${topDx.length?topDx.map(d=>`<div class="prow" style="cursor:default"><div class="who"><div class="nm" style="font-size:14px">${esc(d)}</div></div><span class="pill in-consultation">${dx[d]}</span></div>`).join("")
+    :'<p style="color:var(--muted)">No visits in range.</p>'}</div>
+   <div class="card"><h3>Follow-up compliance</h3>
+    <p style="font-size:13px;color:var(--muted)">${dueF.length} follow-ups were due; ${kept.length} patients returned on or after their date.</p>
+    <div style="background:var(--line);border-radius:8px;height:14px;overflow:hidden"><div style="width:${comp}%;height:100%;background:var(--teal)"></div></div>
+    <p style="font-size:13px"><b>${comp}%</b> kept their follow-up</p></div>
+  </div>
+  <p style="font-size:12px;color:var(--muted)">Demo analytics \u2014 computed live from clinic records on this device.</p>`;
+  drawRevChart();
+}
+function drawRevChart(){
+  const c=document.getElementById("revChart"); if(!c) return;
+  const days=repDates();
+  const rev=days.map(d=>DB.bills.filter(b=>b.paid&&b.date===d).reduce((s,b)=>s+b.items.reduce((a,i)=>a+i[1],0),0));
+  const ctx=c.getContext("2d"), W=c.width, H=c.height, pad=44;
+  const max=Math.max.apply(null,rev.concat([1]));
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle="#e2eae9"; ctx.fillStyle="#5f716e"; ctx.font="11px sans-serif"; ctx.textAlign="right";
+  for(let g=0;g<=4;g++){ const y=pad+(H-pad-44)*g/4, val=Math.round(max*(4-g)/4);
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-10,y); ctx.stroke();
+    ctx.fillText("\u20B9"+val.toLocaleString("en-IN"),pad-6,y+4); }
+  const bw=(W-pad-20)/days.length;
+  ctx.textAlign="center";
+  days.forEach((d,i)=>{ const h=(H-pad-44)*rev[i]/max, x=pad+bw*i+bw*0.15, y=H-44-h;
+    ctx.fillStyle="#0d9488"; ctx.fillRect(x,y,bw*0.7,Math.max(h,2));
+    if(rev[i]>0){ ctx.fillStyle="#0b7c72"; ctx.fillText("\u20B9"+rev[i].toLocaleString("en-IN"),x+bw*0.35,y-6); }
+    ctx.fillStyle="#5f716e"; ctx.fillText(d.slice(0,5),x+bw*0.35,H-24); });
+}
+
+/* ---------------- AI Agents (Phase 4, doctor only) ---------------- */
+const AGENT_DEFS=[
+ {id:"queue",ic:"\u23F1\uFE0F",name:"Queue Optimizer",desc:"Live ETA engine \u2014 watches the token queue and refreshes every patient's estimated wait (~8 min per consultation) as tokens move. Its estimates power the queue view."},
+ {id:"scribe",ic:"\u2728",name:"AI Scribe",desc:"Turns dictated or typed visit notes into a structured prescription draft \u2014 complaints, diagnosis, medicines \u2014 for the doctor to review. Nothing is final until the doctor taps Save."},
+ {id:"followup",ic:"\uD83D\uDCC5",name:"Follow-up Agent",desc:"Scans visit records for due follow-ups and queues reminders so chronic patients don't slip through. Demo rule set \u2014 production uses the scheduling engine."},
+ {id:"reminder",ic:"\uD83D\uDCAC",name:"Reminder Agent",desc:"Delivers token confirmations, queue updates and prescription-ready messages on WhatsApp. Fully simulated in this demo \u2014 nothing leaves the device."}
+];
+function vAgents(v){
+  if(!needDoctor()) return;
+  v.innerHTML=`<div class="pagehead"><h2>AI Agents</h2><span class="pill done">Doctor controls</span></div>
+  ${AGENT_DEFS.map(a=>{const on=DB.settings.agents[a.id];const f=(DB.agentFeed[a.id]||[]).slice(0,4);return `
+   <div class="card"><div style="display:flex;align-items:flex-start;gap:12px">
+     <div style="font-size:26px">${a.ic}</div>
+     <div style="flex:1;min-width:0"><h3 style="margin:0 0 4px">${a.name}
+       <span class="pill ${on?"done":"waiting"}" style="margin-left:6px">${on?"Active":"Paused"}</span></h3>
+       <p style="color:var(--muted);font-size:13.5px;margin:0 0 10px">${a.desc}</p>
+       <div class="btnrow" style="align-items:center"><button class="tgl ${on?"on":""}" onclick="agentToggle('${a.id}')" aria-label="Toggle ${a.name}"></button>
+       <span style="font-size:13px;color:var(--muted)">${on?"Running":"Paused"} \u2014 toggle persists</span></div>
+       ${f.length?`<div style="margin-top:10px;font-size:13px"><b>Recent activity</b>${f.map(e=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><span style="color:var(--muted);font-size:11.5px">${esc(e.ts)}</span><br>${esc(e.text)}</div>`).join("")}</div>`:""}
+     </div></div></div>`;}).join("")}
+  <p style="font-size:12px;color:var(--muted)">Demo agents run on-device rules. Production agents run medical LLMs with doctor review on every clinical output.</p>`;
+}
+function agentToggle(id){ DB.settings.agents[id]=!DB.settings.agents[id];
+  audit("Agent "+(DB.settings.agents[id]?"enabled":"paused"),id); save(); render();
+  toast("Agent "+(DB.settings.agents[id]?"enabled":"paused")); }
+
+/* ---------------- Security & Audit (Phase 4, doctor only) ---------------- */
+const PERMS=[
+ ["Consult & prescribe",1,0],["Collect payments",1,1],["Register patients",1,1],
+ ["Send WhatsApp messages",1,1],["View reports",1,1],["Switch branches",1,1],
+ ["Change settings & fees",1,0],["View audit log",1,0]
+];
+function vSecurity(v){
+  if(!needDoctor()) return;
+  const s=DB.session, log=DB.auditLog.slice(0,60);
+  v.innerHTML=`<div class="pagehead"><h2>Security & Audit</h2><span class="pill done">Doctor only</span></div>
+  <div class="card"><h3>Current session</h3>
+   <table class="log"><tr><th>Signed in as</th><th>Branch</th><th>Since</th></tr>
+   <tr><td>${esc(s.role)}</td><td>${esc(branchName(s.branchId))}</td><td>${esc(s.at)}</td></tr></table></div>
+  <div class="card"><h3>Role permissions</h3>
+   <table class="log"><tr><th>Action</th><th>Doctor</th><th>Receptionist</th></tr>
+   ${PERMS.map(p=>`<tr><td>${p[0]}</td><td>${p[1]?"\u2713":"\u2014"}</td><td>${p[2]?"\u2713":"\u2014"}</td></tr>`).join("")}</table>
+   <p style="font-size:12px;color:var(--muted)">Clinical actions (consult, settings, audit) need a doctor sign-in. Receptionists handle queue, billing, WhatsApp and registration.</p></div>
+  <div class="card"><h3>Audit log <span style="font-size:12px;color:var(--muted);font-weight:400">\u2014 every action, newest first</span></h3>
+   ${log.length?`<div style="max-height:320px;overflow:auto"><table class="log"><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+   ${log.map(e=>`<tr><td style="white-space:nowrap">${esc(e.ts)}</td><td>${esc(e.user)}</td><td>${esc(e.action)}</td><td>${esc(e.entity)}</td></tr>`).join("")}</table></div>`
+   :'<p style="color:var(--muted)">No entries yet.</p>'}</div>
+  <div class="card"><h3>Backup & data safety</h3><div class="btnrow">
+    <button class="btn sm ghost" onclick="exportData()">Export backup</button>
+    <button class="btn sm ghost" onclick="document.getElementById('impFile2').click()">Import</button>
+    <input type="file" id="impFile2" accept="application/json" style="display:none" onchange="importData(event)">
+    <button class="btn sm danger" onclick="resetData()">Reset demo</button></div>
+   <div class="notice" style="margin-top:10px">Demo data safety: everything lives in this browser's localStorage. Nothing is uploaded anywhere \u2014 backups download as a file to this device.</div></div>`;
+}
+
+/* ---------------- Settings (Phase 4, doctor only) ---------------- */
+let SET_BID="";
+function vSettings(v){
+  if(!needDoctor()) return;
+  const s=DB.settings, bid=SET_BID||DB.session.branchId; SET_BID=bid;
+  const b=DB.branches.find(x=>x.id===bid);
+  v.innerHTML=`<div class="pagehead"><h2>Settings</h2><span class="pill done">Doctor only</span></div>
+  <div class="card"><h3>Clinic profile</h3>
+   <div class="field"><label>Branch</label><select id="setBid" onchange="SET_BID=this.value;render()">
+     ${DB.branches.map(x=>`<option value="${x.id}" ${x.id===bid?"selected":""}>${esc(x.name)} \u2014 ${esc(x.area)}</option>`).join("")}</select></div>
+   <div class="grid2" style="gap:10px">
+    <div class="field"><label>Clinic name</label><input id="setBName" value="${esc(b.name)}"></div>
+    <div class="field"><label>Area</label><input id="setBArea" value="${esc(b.area)}"></div>
+    <div class="field"><label>Phone</label><input id="setBPhone" value="${esc(b.phone)}"></div>
+    <div class="field"><label>Consultation fee (\u20B9)</label><input id="setFee" type="number" min="0" value="${DB.fees[bid]||300}"></div>
+   </div>
+   <div class="btnrow"><button class="btn sm" onclick="saveBranchProfile()">Save clinic profile</button></div></div>
+  <div class="card"><h3>Doctor profile</h3>
+   <div class="field"><label>Doctor name</label><input id="setDoc" value="${esc(s.doctorName)}"></div>
+   <div class="btnrow"><button class="btn sm" onclick="saveDoctorProfile()">Save</button></div></div>
+  <div class="card"><h3>Messaging & print</h3>
+   <div class="field"><label>Default WhatsApp language</label><div class="btnrow">
+     <button class="btn sm ${s.waLang==="hi"?"":"ghost"}" onclick="setWaLang('hi')">\u0939\u093F\u0902\u0926\u0940</button>
+     <button class="btn sm ${s.waLang==="en"?"":"ghost"}" onclick="setWaLang('en')">English</button></div>
+     <p style="font-size:12px;color:var(--muted)">Applies to WhatsApp templates in the WhatsApp Center.</p></div>
+   <div class="field"><label>Print header text (receipts)</label><input id="setPrint" value="${esc(s.printHeader)}" placeholder="e.g. Sharma Clinic \u2014 caring since 1998"></div>
+   <div class="btnrow"><button class="btn sm" onclick="savePrintPref()">Save</button></div></div>
+  <div class="card"><h3>Notifications</h3>
+   ${[["tokenConfirm","Token confirmations on WhatsApp"],["followupRemind","Follow-up reminders"],["dailySummary","Daily summary to doctor"]].map(n=>`
+    <label style="display:flex;gap:10px;align-items:center;padding:8px 0;font-size:14px">
+     <input type="checkbox" id="ntf_${n[0]}" ${s.notif[n[0]]?"checked":""} style="width:18px;height:18px;accent-color:var(--teal)"> ${n[1]}</label>`).join("")}
+   <div class="btnrow" style="margin-top:8px"><button class="btn sm" onclick="saveNotif()">Save preferences</button></div></div>`;
+}
+function saveBranchProfile(){ const bid=SET_BID||DB.session.branchId, b=DB.branches.find(x=>x.id===bid);
+  b.name=document.getElementById("setBName").value.trim()||b.name;
+  b.area=document.getElementById("setBArea").value.trim()||b.area;
+  b.phone=document.getElementById("setBPhone").value.trim()||b.phone;
+  DB.fees[bid]=Math.max(0,parseInt(document.getElementById("setFee").value,10)||0);
+  audit("Settings updated","clinic profile @ "+b.name); save(); render(); toast("Clinic profile saved"); }
+function saveDoctorProfile(){ DB.settings.doctorName=document.getElementById("setDoc").value.trim()||"Dr. Sharma";
+  audit("Settings updated","doctor profile"); save(); render(); toast("Doctor profile saved"); }
+function setWaLang(l){ DB.settings.waLang=l; audit("Settings updated","WhatsApp language \u2192 "+l); save(); render(); }
+function savePrintPref(){ DB.settings.printHeader=document.getElementById("setPrint").value.trim();
+  audit("Settings updated","print header"); save(); render(); toast("Print preference saved"); }
+function saveNotif(){ ["tokenConfirm","followupRemind","dailySummary"].forEach(k=>{ DB.settings.notif[k]=document.getElementById("ntf_"+k).checked; });
+  audit("Settings updated","notification preferences"); save(); render(); toast("Preferences saved"); }
 
 /* ---------------- Init ---------------- */
 load();
