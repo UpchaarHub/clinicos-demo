@@ -3,13 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ClinicOS — Clinic & Hospital Management</title>
+<meta name="description" content="ClinicOS demo — AI-powered clinic management: token queue, AI scribe, billing, WhatsApp reminders, branches, reports. Sample data only; runs fully on-device.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230D9488'/%3E%3Cpath d='M32 18v28M18 32h28' stroke='white' stroke-width='9' stroke-linecap='round'/%3E%3C/svg%3E">
+<title>ClinicOS — Clinic &amp; Hospital Management</title>
 <style>
 :root{
   --teal:#0d9488; --teal-dark:#0b7c72; --teal-light:#e6f7f5;
   --bg:#f2f6f6; --card:#ffffff; --ink:#14332f; --muted:#5f716e;
   --line:#e2eae9; --danger:#dc2626; --amber:#b45309; --amber-bg:#fef3e2;
   --green:#15803d; --green-bg:#e9f7ee; --red-bg:#fdecec;
+  --info:#1e40af; --info-bg:#eef6ff; --info-line:#cfe4fb;
+  --banner-bg:#fff8e6; --banner-line:#f0dfae; --banner-ink:#8a6d1a;
+  --pill-wait-bg:#fff7e6; --pill-wait-ink:#a16207;
+  --pill-prog-bg:#e0f2ff; --pill-prog-ink:#0369a1;
   --radius:14px; --shadow:0 2px 10px rgba(20,51,47,.07);
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
 }
@@ -17,6 +23,7 @@
 html,body{margin:0;padding:0;}
 body{font-family:var(--font); background:var(--bg); color:var(--ink); font-size:15px; line-height:1.45;}
 h1,h2,h3{margin:0 0 .5em;}
+h3{font-size:16px;}
 p{margin:.4em 0;}
 button{font-family:var(--font);}
 
@@ -29,25 +36,33 @@ button{font-family:var(--font);}
   align-items:center;justify-content:center;font-size:28px;font-weight:800;}
 .brand h1{font-size:24px; margin:.4em 0 .1em;}
 .brand p{color:var(--muted); font-size:13px; margin:0;}
-.demo-banner{background:#fff8e6;border:1px solid #f0dfae;color:#8a6d1a;border-radius:10px;padding:8px 12px;
+.demo-banner{background:var(--banner-bg);border:1px solid var(--banner-line);color:var(--banner-ink);border-radius:10px;padding:8px 12px;
   font-size:12.5px;margin-bottom:14px;text-align:center;}
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px;}
 .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;
   font-size:15px;font-family:var(--font);background:#fff;color:var(--ink);}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--teal);}
+.field input.invalid,.field select.invalid,.field textarea.invalid{border-color:var(--danger);}
+.err{color:var(--danger);font-size:12.5px;font-weight:600;margin-top:6px;}
 .role-pick{display:flex;gap:10px;}
-.role-opt{flex:1;border:2px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;}
+.role-opt{flex:1;border:2px solid var(--line);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;
+  font-family:var(--font);color:var(--ink);font-size:15px;}
+.role-opt:hover{border-color:var(--teal);}
 .role-opt.sel{border-color:var(--teal);background:var(--teal-light);}
 .role-opt .ic{font-size:24px;}
 .role-opt .t{font-weight:700;font-size:14px;margin-top:4px;}
 .btn{display:inline-block;border:none;border-radius:12px;padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;
   background:var(--teal);color:#fff;width:100%;}
 .btn:active{transform:scale(.98);}
+.btn:hover{filter:brightness(.94);}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;filter:none;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--teal);outline-offset:2px;}
 .btn.secondary{background:#fff;color:var(--teal);border:1.5px solid var(--teal);}
 .btn.ghost{background:#eef4f3;color:var(--ink);}
 .btn.danger{background:var(--danger);}
-.btn.sm{padding:8px 12px;font-size:13px;width:auto;border-radius:9px;}
+.btn.sm{padding:10px 14px;font-size:13px;width:auto;border-radius:9px;}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap;}
 
 /* ---------- App shell ---------- */
@@ -68,6 +83,9 @@ button{font-family:var(--font);}
   padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;}
 .nav button .ic{font-size:17px;width:22px;text-align:center;}
 .nav button.active{background:var(--teal-light);color:var(--teal-dark);}
+.nav button:hover{background:#f0f7f6;}
+.nav button.active:hover{background:var(--teal-light);}
+.nav button:active{transform:scale(.98);}
 .nav .sec{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
   padding:10px 12px 4px;}
 .main{flex:1;padding:16px;min-width:0;}
@@ -86,13 +104,14 @@ button{font-family:var(--font);}
 .token .num{width:46px;height:46px;border-radius:12px;background:var(--teal-light);color:var(--teal-dark);
   font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;}
-.pill.waiting{background:#fff7e6;color:#a16207;}
-.pill.in-consultation{background:#e0f2ff;color:#0369a1;}
+.pill.waiting{background:var(--pill-wait-bg);color:var(--pill-wait-ink);}
+.pill.in-consultation{background:var(--pill-prog-bg);color:var(--pill-prog-ink);}
 .pill.done{background:var(--green-bg);color:var(--green);}
 .token .who{flex:1;min-width:0;}
 .token .who .nm{font-weight:700;}
 .token .who .sub{font-size:12px;color:var(--muted);}
 .prow{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
+.prow[data-kb]:hover{background:#f7fbfa;}
 .prow:last-child{border-bottom:none;}
 .avatar{width:42px;height:42px;border-radius:50%;background:var(--teal-light);color:var(--teal-dark);
   display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;}
@@ -101,7 +120,7 @@ button{font-family:var(--font);}
 .prow .sub{font-size:12px;color:var(--muted);}
 .tag{display:inline-block;font-size:11px;font-weight:700;background:#fff1f1;color:var(--danger);
   border-radius:6px;padding:2px 7px;margin-right:4px;}
-.tag.chronic{background:#eef4ff;color:#1d4ed8;}
+.tag.chronic{background:var(--info-bg);color:var(--info);}
 .timeline{border-left:2px solid var(--line);margin:8px 0 0 6px;padding-left:16px;}
 .tl-item{position:relative;padding-bottom:14px;}
 .tl-item:before{content:"";position:absolute;left:-22.5px;top:4px;width:11px;height:11px;border-radius:50%;
@@ -110,12 +129,16 @@ button{font-family:var(--font);}
 .warn{background:var(--red-bg);border:1px solid #f5c6c6;color:#991b1b;border-radius:10px;padding:10px 12px;
   font-size:13px;margin:8px 0;}
 .warn.amber{background:var(--amber-bg);border-color:#f0dcb4;color:#92400e;}
-.notice{background:#eef6ff;border:1px solid #cfe4fb;color:#1e40af;border-radius:10px;padding:10px 12px;
+.notice{background:var(--info-bg);border:1px solid var(--info-line);color:var(--info);border-radius:10px;padding:10px 12px;
   font-size:13px;margin:8px 0;}
 
 /* ---------- Modal / toast / misc ---------- */
 .modal-veil{position:fixed;inset:0;background:rgba(10,30,28,.5);display:none;align-items:flex-end;justify-content:center;z-index:100;}
 .modal-veil.open{display:flex;}
+.modal-veil.open .modal{animation:mpop .2s ease;}
+@keyframes mpop{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+#view.vin{animation:viewin .15s ease;}
+@keyframes viewin{from{opacity:.35;}to{opacity:1;}}
 .modal{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:20px;}
 .modal h3{margin-top:0;}
 #toasts{position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;}
@@ -123,6 +146,8 @@ button{font-family:var(--font);}
   box-shadow:0 4px 16px rgba(0,0,0,.25);animation:tin .25s ease;}
 @keyframes tin{from{opacity:0;transform:translateY(8px);}to{opacity:1;}}
 table.log{width:100%;border-collapse:collapse;font-size:13px;}
+.tablewrap{overflow-x:auto;margin:0 -4px;padding:0 4px;}
+.tablewrap table.log{min-width:520px;}
 table.log th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;
   padding:8px;border-bottom:1px solid var(--line);}
 table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;}
@@ -133,8 +158,6 @@ table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;
 .agentrow:last-child{border:none;}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 0 3px var(--green-bg);}
 .dot.off{background:#9aa5a3;box-shadow:none;}
-.phase-tag{font-size:10.5px;font-weight:800;background:#ede9fe;color:#5b21b6;border-radius:6px;padding:3px 8px;
-  text-transform:uppercase;letter-spacing:.05em;}
 .placeholder{text-align:center;padding:44px 20px;color:var(--muted);}
 .placeholder .big{font-size:44px;margin-bottom:8px;}
 .placeholder h3{color:var(--ink);}
@@ -159,6 +182,7 @@ table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;
   font-size:10px;font-weight:700;color:var(--muted);padding:6px 2px;cursor:pointer;}
 .bottomnav button .ic{font-size:20px;}
 .bottomnav button.active{color:var(--teal-dark);}
+.bottomnav button:hover{background:#f4faf9;}
 .sheet-veil{position:fixed;inset:0;background:rgba(10,30,28,.5);display:none;z-index:90;}
 .sheet-veil.open{display:block;}
 .sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;z-index:95;
@@ -168,6 +192,7 @@ table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;
 .sheet button.mi{display:flex;align-items:center;gap:12px;width:100%;border:none;background:none;text-align:left;
   padding:13px 8px;font-size:15px;font-weight:600;border-bottom:1px solid var(--line);cursor:pointer;color:var(--ink);}
 .sheet button.mi .ic{font-size:19px;width:24px;}
+.sheet button.mi:hover{background:#f7fbfa;}
 
 @media (max-width:820px){
   .sidebar{display:none;}
@@ -202,12 +227,12 @@ table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;
     <div class="field">
       <label>I am a</label>
       <div class="role-pick">
-        <div class="role-opt sel" id="roleDoctor" onclick="pickRole('doctor')">
+        <button type="button" class="role-opt sel" id="roleDoctor" onclick="pickRole('doctor')">
           <div class="ic">&#x1F468;&#x200D;&#x2695;&#xFE0F;</div><div class="t">Doctor</div>
-        </div>
-        <div class="role-opt" id="roleRecep" onclick="pickRole('receptionist')">
+        </button>
+        <button type="button" class="role-opt" id="roleRecep" onclick="pickRole('receptionist')">
           <div class="ic">&#x1F469;&#x200D;&#x1F4BB;</div><div class="t">Receptionist</div>
-        </div>
+        </button>
       </div>
     </div>
     <div class="field">
@@ -216,7 +241,10 @@ table.log td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top;
     </div>
     <div class="field">
       <label>Demo PIN (any 4 digits)</label>
-      <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+      <input id="loginPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"
+        onkeydown="if(event.key==='Enter')doLogin()"
+        oninput="this.classList.remove('invalid');document.getElementById('pinErr').style.display='none'">
+      <div class="err" id="pinErr" style="display:none">Enter any 4-digit PIN to continue.</div>
     </div>
     <button class="btn" onclick="doLogin()">Sign in securely</button>
     <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:12px;">
@@ -392,8 +420,17 @@ function branchTokens(bid){ return DB.tokens.filter(t=>t.branchId===bid).sort((a
 function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg;
   document.getElementById("toasts").appendChild(t); setTimeout(()=>t.remove(),2400); }
 function openModal(html){ document.getElementById("modalBox").innerHTML=html;
-  document.getElementById("modalVeil").classList.add("open"); }
+  document.getElementById("modalVeil").classList.add("open");
+  const f=document.querySelector("#modalBox input,#modalBox select,#modalBox button"); if(f) f.focus(); }
 function closeModal(){ document.getElementById("modalVeil").classList.remove("open"); }
+
+/* Global keyboard support: Esc dismisses overlays; Enter/Space activates keyboard-focusable rows */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){ closeModal(); closeSheet(); return; }
+  const t=e.target;
+  if((e.key==="Enter"||e.key===" ")&&t&&t.classList&&t.classList.contains("prow")&&t.hasAttribute("data-kb")){
+    e.preventDefault(); t.click(); }
+});
 
 /* ---------------- Navigation ---------------- */
 const NAV=[
@@ -414,10 +451,10 @@ function buildNav(){
   document.getElementById("sideNav").innerHTML =
     '<div class="sec">Clinic</div>'+NAV.slice(0,8).map(n=>
       `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
-       <span class="ic">${n.ic}</span>${n.t}${n.phase?` <span class="phase-tag">${n.phase}</span>`:""}</button>`).join("")+
+       <span class="ic">${n.ic}</span>${n.t}</button>`).join("")+
     '<div class="sec">System</div>'+NAV.slice(8).map(n=>
       `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
-       <span class="ic">${n.ic}</span>${n.t}${n.phase?` <span class="phase-tag">${n.phase}</span>`:""}</button>`).join("");
+       <span class="ic">${n.ic}</span>${n.t}</button>`).join("");
   const mob=[NAV[0],NAV[1],NAV[2],NAV[3]];
   document.getElementById("bottomNav").innerHTML = mob.map(n=>
     `<button data-v="${n.id}" class="${n.id===curView?'active':''}" onclick="go('${n.id}')">
@@ -427,14 +464,15 @@ function buildNav(){
 function openSheet(){
   document.getElementById("moreSheet").innerHTML =
     '<h3 style="margin:4px 0 8px">All sections</h3>'+NAV.map(n=>
-    `<button class="mi" onclick="go('${n.id}');closeSheet()"><span class="ic">${n.ic}</span>${n.t}
-     ${n.phase?`<span class="phase-tag">${n.phase}</span>`:""}</button>`).join("");
+    `<button class="mi" onclick="go('${n.id}');closeSheet()"><span class="ic">${n.ic}</span>${n.t}</button>`).join("");
   document.getElementById("sheetVeil").classList.add("open");
   document.getElementById("moreSheet").classList.add("open");
 }
 function closeSheet(){ document.getElementById("sheetVeil").classList.remove("open");
   document.getElementById("moreSheet").classList.remove("open"); }
-function go(v){ curView=v; buildNav(); render(); window.scrollTo(0,0); }
+function go(v){ curView=v;
+  const nt=NAV.find(n=>n.id===v); document.title=(nt?nt.t+" \u00B7 ":"")+"ClinicOS";
+  buildNav(); render(); window.scrollTo(0,0); }
 function isDoctor(){ return DB.session && DB.session.role==="doctor"; }
 function needDoctor(){
   if(isDoctor()) return true;
@@ -444,17 +482,6 @@ function needDoctor(){
      This is a security guardrail — sensitive actions need a doctor's sign-in.</p></div></div>`;
   return false;
 }
-function placeholderPage(n){
-  const d={whatsapp:["\uD83D\uDCAC","WhatsApp Center","Templates, reminders, report delivery on the clinic's own number."],
-    branches:["\uD83C\uDFE5","Branches","Switch locations, branch-level stats, one shared patient record."],
-    reports:["\uD83D\uDCC8","Reports","Revenue, footfall, follow-ups, medicine analytics."],
-    agents:["\u2728","AI Agents","Scribe, Safety Checker, Follow-up and Queue agents \u2014 status and controls."],
-    security:["\uD83D\uDD12","Security & Audit","Full audit log, role permissions, backup & restore."],
-    settings:["\u2699\uFE0F","Settings","Clinic profile, staff, fees, print header."]}[n.id]||["\u2728",n.t,""];
-  return `<div class="pagehead"><h2>${n.t}</h2></div>
-    <div class="card"><div class="placeholder"><div class="big">${d[0]}</div><h3>${d[1]}</h3>
-    <p>${d[2]}</p><span class="phase-tag">${n.phase||""}</span></div></div>`;
-}
 /* ---------------- Login ---------------- */
 let loginRole="doctor";
 function pickRole(r){ loginRole=r;
@@ -462,7 +489,11 @@ function pickRole(r){ loginRole=r;
   document.getElementById("roleRecep").classList.toggle("sel",r==="receptionist"); }
 function doLogin(){
   const pin=document.getElementById("loginPin").value.trim();
-  if(!/^\d{4}$/.test(pin)){ toast("Enter any 4-digit demo PIN"); return; }
+  if(!/^\d{4}$/.test(pin)){
+    document.getElementById("loginPin").classList.add("invalid");
+    document.getElementById("pinErr").style.display="block";
+    return;
+  }
   const branchId=document.getElementById("loginBranch").value;
   DB.session={role:loginRole,branchId,pin:"****",at:nowStr()};
   audit("Sign in", loginRole+" @ "+branchName(branchId)); save();
@@ -480,7 +511,7 @@ function enterApp(){
   document.getElementById("tbClinic").textContent="ClinicOS";
   document.getElementById("tbBranch").textContent=branchName(s.branchId);
   document.getElementById("tbRole").textContent=s.role==="doctor"?"\uD83D\uDC68\u200D\u2695\uFE0F Doctor":"Receptionist";
-  curView="dashboard"; buildNav(); render();
+  go("dashboard");
 }
 function switchBranch(){
   const opts=DB.branches.map(b=>`<option value="${b.id}" ${b.id===DB.session.branchId?"selected":""}>${esc(b.name)} — ${esc(b.area)}</option>`).join("");
@@ -499,6 +530,7 @@ function render(){
   ({dashboard:vDashboard, queue:vQueue, patients:vPatients, consult:vConsult, billing:vBilling,
     whatsapp:vWhatsApp, branches:vBranches, reports:vReports,
     agents:vAgents, security:vSecurity, settings:vSettings}[curView]||vDashboard)(v);
+  v.classList.remove("vin"); void v.offsetWidth; v.classList.add("vin");
 }
 
 /* ---------------- Dashboard ---------------- */
@@ -532,7 +564,7 @@ function vDashboard(v){
     <div class="card"><h3>AI agents at work</h3>${feed}</div>
   </div>
   <div class="card"><h3>Follow-ups due</h3>
-    ${due.length?due.map(p=>`<div class="prow" onclick="openPatient('${p.id}')">
+    ${due.length?due.map(p=>`<div class="prow" tabindex="0" data-kb="1" role="button" onclick="openPatient('${p.id}')">
       <div class="avatar">${esc(p.name[0])}</div>
       <div class="who"><div class="nm">${esc(p.name)}</div>
       <div class="sub">Due ${esc(p.followUp)} · ${esc(p.chronic.join(", ")||"—")}</div></div>
@@ -595,7 +627,7 @@ function vPatients(v){
     <input id="patSearch" placeholder="Search name, village, phone…" value="${esc(patQuery)}"
       oninput="patQuery=this.value;vPatientsRefresh()"></div></div>
   <div class="card" id="patList">${list.map(p=>`
-    <div class="prow" onclick="openPatient('${p.id}')">
+    <div class="prow" tabindex="0" data-kb="1" role="button" onclick="openPatient('${p.id}')">
       <div class="avatar">${esc(p.name[0])}</div>
       <div class="who"><div class="nm">${esc(p.name)} <span class="sub">${p.age}${p.sex}</span></div>
         <div class="sub">${esc(p.village)} · ${esc(p.phone)}</div></div>
@@ -607,6 +639,7 @@ function vPatients(v){
     <button class="btn sm ghost" onclick="document.getElementById('impFile').click()">Import</button>
     <input type="file" id="impFile" accept="application/json" style="display:none" onchange="importData(event)">
     <button class="btn sm danger" onclick="resetData()">Reset demo</button></div>
+    <div class="err imp-err" style="display:none"></div>
     <p style="font-size:12px;color:var(--muted)">Backups stay on this device. Patient consent is captured at registration (DPDP-ready).</p></div>`;
   const s=document.getElementById("patSearch"); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); }
 }
@@ -614,7 +647,7 @@ function vPatientsRefresh(){
   const q=patQuery.toLowerCase();
   const list=DB.patients.filter(p=>!q||p.name.toLowerCase().includes(q)||p.village.toLowerCase().includes(q)||p.phone.includes(q));
   document.getElementById("patList").innerHTML=list.map(p=>`
-    <div class="prow" onclick="openPatient('${p.id}')">
+    <div class="prow" tabindex="0" data-kb="1" role="button" onclick="openPatient('${p.id}')">
       <div class="avatar">${esc(p.name[0])}</div>
       <div class="who"><div class="nm">${esc(p.name)} <span class="sub">${p.age}${p.sex}</span></div>
         <div class="sub">${esc(p.village)} · ${esc(p.phone)}</div></div>
@@ -635,15 +668,20 @@ function regPatient(){
     <div class="field"><label>Chronic conditions (comma separated)</label><input id="rpChr" placeholder="e.g. Diabetes, Hypertension"></div>
     <div class="consent-box"><label><input type="checkbox" id="rpConsent" style="margin-top:3px">
       <span>Patient (or guardian) consents to digital health records &amp; WhatsApp updates. Consent can be withdrawn anytime at the clinic.</span></label></div>
+    <div class="err" id="rpErr" style="display:none"></div>
     <div class="btnrow"><button class="btn" onclick="doRegPatient()">Register</button>
     <button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
 }
 function doRegPatient(){
-  const name=document.getElementById("rpName").value.trim(),
-        age=parseInt(document.getElementById("rpAge").value,10),
-        phone=document.getElementById("rpPhone").value.trim();
-  if(!name||!(age>=0)||!/^\d{10}$/.test(phone)){ toast("Name, valid age and 10-digit phone are required"); return; }
-  if(!document.getElementById("rpConsent").checked){ toast("Consent is required to create a record"); return; }
+  const nameEl=document.getElementById("rpName"), ageEl=document.getElementById("rpAge"), phoneEl=document.getElementById("rpPhone");
+  const name=nameEl.value.trim(), age=parseInt(ageEl.value,10), phone=phoneEl.value.trim();
+  const err=document.getElementById("rpErr");
+  const fail=(msg,el)=>{ err.textContent=msg; err.style.display="block";
+    [nameEl,ageEl,phoneEl].forEach(x=>x.classList.remove("invalid")); if(el) el.classList.add("invalid"); };
+  if(!name) return fail("Enter the patient's full name.",nameEl);
+  if(!(age>=0)) return fail("Enter a valid age in years.",ageEl);
+  if(!/^\d{10}$/.test(phone)) return fail("Enter a 10-digit mobile number.",phoneEl);
+  if(!document.getElementById("rpConsent").checked) return fail("Consent is required to create a record.",null);
   const p={id:"p"+Date.now(),name,age,sex:document.getElementById("rpSex").value,phone,
     village:document.getElementById("rpVillage").value.trim()||"—",
     branchId:DB.session.branchId, allergies:document.getElementById("rpAlg").value.trim(),
@@ -688,7 +726,8 @@ function importData(ev){
   const r=new FileReader();
   r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.patients||!d.branches) throw 0;
       DB=d; ensureSettings(); audit("Data imported","backup file"); save(); render(); toast("Backup restored");
-    }catch(e){ toast("Invalid backup file"); } };
+    }catch(e){ toast("Invalid backup file");
+      document.querySelectorAll(".imp-err").forEach(x=>{x.style.display="block";x.textContent="That file isn't a valid ClinicOS backup — nothing was changed.";}); } };
   r.readAsText(f); ev.target.value="";
 }
 function resetData(){ if(!confirm("Reset all demo data?")) return;
@@ -901,7 +940,7 @@ function vBilling(v){
   v.innerHTML=`<div class="pagehead"><h2>Billing</h2>
     <span class="pill ${due?"waiting":"done"}">${due} unpaid</span></div>
   ${bills.map(b=>{const p=patientById(b.patientId);const tot=b.items.reduce((s,i)=>s+i[1],0);return `
-    <div class="prow" onclick="openBill('${b.id}')">
+    <div class="prow" tabindex="0" data-kb="1" role="button" onclick="openBill('${b.id}')">
       <div class="avatar">₹</div>
       <div class="who"><div class="nm">${b.no} — ${esc(p.name)}</div>
       <div class="sub">${b.date} · ${inr(tot)}${b.mode?" · "+b.mode:""}</div></div>
@@ -1093,10 +1132,10 @@ function vBranches(v){
       :`<button class="btn secondary" onclick="branchOpen('${r.b.id}')">Open this branch</button>`}
    </div>`).join("")}</div>
   <div class="card"><h3>Comparison</h3>
-   <table class="log"><tr><th>Branch</th><th>Tokens</th><th>Waiting</th><th>Seen</th><th>Patients</th><th>Revenue</th></tr>
+   <div class="tablewrap"><table class="log"><tr><th>Branch</th><th>Tokens</th><th>Waiting</th><th>Seen</th><th>Patients</th><th>Revenue</th></tr>
    ${rows.map(r=>`<tr><td><b>${esc(r.b.name)}</b><br><span style="color:var(--muted);font-size:12px">${esc(r.b.area)}</span></td>
      <td>${r.s.tokens}</td><td>${r.s.waiting}</td><td>${r.s.done}</td><td>${r.s.patients}</td><td>${inr(r.s.rev)}</td></tr>`).join("")}
-   </table></div>`;
+   </table></div></div>`;
 }
 function branchOpen(bid){ DB.session.branchId=bid; audit("Branch opened",branchName(bid)); save();
   document.getElementById("tbBranch").textContent=branchName(bid); render(); toast("Now viewing "+branchName(bid)); }
@@ -1177,7 +1216,7 @@ function vAgents(v){
      <div style="flex:1;min-width:0"><h3 style="margin:0 0 4px">${a.name}
        <span class="pill ${on?"done":"waiting"}" style="margin-left:6px">${on?"Active":"Paused"}</span></h3>
        <p style="color:var(--muted);font-size:13.5px;margin:0 0 10px">${a.desc}</p>
-       <div class="btnrow" style="align-items:center"><button class="tgl ${on?"on":""}" onclick="agentToggle('${a.id}')" aria-label="Toggle ${a.name}"></button>
+       <div class="btnrow" style="align-items:center"><button class="tgl ${on?"on":""}" onclick="agentToggle('${a.id}')" aria-label="Toggle ${a.name}" aria-pressed="${on}"></button>
        <span style="font-size:13px;color:var(--muted)">${on?"Running":"Paused"} \u2014 toggle persists</span></div>
        ${f.length?`<div style="margin-top:10px;font-size:13px"><b>Recent activity</b>${f.map(e=>`<div style="padding:6px 0;border-top:1px solid var(--line)"><span style="color:var(--muted);font-size:11.5px">${esc(e.ts)}</span><br>${esc(e.text)}</div>`).join("")}</div>`:""}
      </div></div></div>`;}).join("")}
@@ -1205,7 +1244,7 @@ function vSecurity(v){
    ${PERMS.map(p=>`<tr><td>${p[0]}</td><td>${p[1]?"\u2713":"\u2014"}</td><td>${p[2]?"\u2713":"\u2014"}</td></tr>`).join("")}</table>
    <p style="font-size:12px;color:var(--muted)">Clinical actions (consult, settings, audit) need a doctor sign-in. Receptionists handle queue, billing, WhatsApp and registration.</p></div>
   <div class="card"><h3>Audit log <span style="font-size:12px;color:var(--muted);font-weight:400">\u2014 every action, newest first</span></h3>
-   ${log.length?`<div style="max-height:320px;overflow:auto"><table class="log"><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+   ${log.length?`<div class="tablewrap" style="max-height:320px;overflow:auto"><table class="log"><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
    ${log.map(e=>`<tr><td style="white-space:nowrap">${esc(e.ts)}</td><td>${esc(e.user)}</td><td>${esc(e.action)}</td><td>${esc(e.entity)}</td></tr>`).join("")}</table></div>`
    :'<p style="color:var(--muted)">No entries yet.</p>'}</div>
   <div class="card"><h3>Backup & data safety</h3><div class="btnrow">
@@ -1213,6 +1252,7 @@ function vSecurity(v){
     <button class="btn sm ghost" onclick="document.getElementById('impFile2').click()">Import</button>
     <input type="file" id="impFile2" accept="application/json" style="display:none" onchange="importData(event)">
     <button class="btn sm danger" onclick="resetData()">Reset demo</button></div>
+   <div class="err imp-err" style="display:none"></div>
    <div class="notice" style="margin-top:10px">Demo data safety: everything lives in this browser's localStorage. Nothing is uploaded anywhere \u2014 backups download as a file to this device.</div></div>`;
 }
 
